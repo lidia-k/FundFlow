@@ -1,0 +1,179 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { api } from '../api/client';
+import type { SessionInfo } from '../types/api';
+
+export default function Dashboard() {
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    try {
+      const data = await api.getSessions();
+      setSessions(data);
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-600 bg-green-100';
+      case 'failed':
+        return 'text-red-600 bg-red-100';
+      case 'processing':
+        return 'text-yellow-600 bg-yellow-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-2 text-gray-600">
+            Welcome to FundFlow SALT calculation platform
+          </p>
+        </div>
+        <Link to="/upload" className="btn-primary">
+          <CloudArrowUpIcon className="h-5 w-5 mr-2" />
+          New Calculation
+        </Link>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <Link
+          to="/upload"
+          className="card p-6 hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <div className="flex items-center">
+            <CloudArrowUpIcon className="h-8 w-8 text-primary-600" />
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Upload File</h3>
+              <p className="text-sm text-gray-500">Start a new SALT calculation</p>
+            </div>
+          </div>
+        </Link>
+
+        <a
+          href="/api/template"
+          download
+          className="card p-6 hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <div className="flex items-center">
+            <DocumentTextIcon className="h-8 w-8 text-primary-600" />
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Download Template</h3>
+              <p className="text-sm text-gray-500">Get the Excel template</p>
+            </div>
+          </div>
+        </a>
+
+        <div className="card p-6">
+          <div className="flex items-center">
+            <ChartBarIcon className="h-8 w-8 text-primary-600" />
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Recent Calculations</h3>
+              <p className="text-sm text-gray-500">{sessions.length} calculations</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Calculations */}
+      <div className="card">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-medium text-gray-900">Recent Calculations</h2>
+        </div>
+        
+        {loading ? (
+          <div className="p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+            <p className="mt-2 text-gray-500">Loading...</p>
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="p-6 text-center">
+            <CloudArrowUpIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No calculations yet</p>
+            <Link to="/upload" className="btn-primary mt-4">
+              Start Your First Calculation
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    File
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sessions.slice(0, 10).map((session) => (
+                  <tr key={session.session_id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {session.filename}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        ID: {session.session_id.slice(0, 8)}...
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(session.status)}`}>
+                        {session.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(session.created_at)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <Link
+                        to={`/results/${session.session_id}`}
+                        className="text-primary-600 hover:text-primary-900"
+                      >
+                        View Results
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

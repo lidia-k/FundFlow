@@ -1,0 +1,39 @@
+{
+  "name": "fundflow",
+  "version": "1.2.0",
+  "description": "FundFlow - AI-Powered PE Back-Office Automation Platform",
+  "scripts": {
+    "dev": "docker-compose up --build",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && python -m pytest",
+    "test:frontend": "cd frontend && npm run test",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd backend && black --check . && isort --check-only . && flake8 .",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:fix": "npm run lint:fix:backend && npm run lint:fix:frontend",
+    "lint:fix:backend": "cd backend && black . && isort .",
+    "lint:fix:frontend": "cd frontend && npm run lint:fix",
+    "type-check": "cd frontend && npm run type-check",
+    "clean": "docker-compose down -v && docker system prune -f",
+    "setup": "npm run setup:frontend && npm run setup:backend",
+    "setup:frontend": "cd frontend && npm install",
+    "setup:backend": "cd backend && pip install -r requirements.txt",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "migration:create": "cd backend && alembic revision --autogenerate -m",
+    "migration:upgrade": "cd backend && alembic upgrade head",
+    "db:seed": "cd backend && python scripts/seed_db.py"
+  },
+  "keywords": ["fundflow", "salt", "pe", "private-equity", "tax-calculation"],
+  "author": "Lidia",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
