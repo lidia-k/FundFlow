@@ -29,18 +29,18 @@ FundFlow v1.2는 PE 펀드의 SALT 계산 워크플로우를 검증하는 **초�
 
 #### **1.2. 기술 스택 (Technology Stack)**
 
-- **Backend Framework:** Python 3.11 + Flask (단순함 우선)
-    
+- **Backend Framework:** Python 3.11 + FastAPI (async/await 지원, 자동 API 문서화)
+
 - **Excel Processing:** pandas + openpyxl (기본 기능만)
-    
-- **Database:** PostgreSQL (단일 인스턴스, 복제 없음)
-    
-- **Cache:** Redis (세션 저장 및 기본 캐싱)
-    
-- **Cloud:** AWS EC2 (단일 인스턴스) + S3 (파일 저장)
-    
+
+- **Database:** SQLite (파일 기반, 단순한 개발/프로토타입)
+
+- **Cache:** File System 캐싱 (단순함 우선)
+
+- **Containerization:** Docker + Docker Compose (모든 환경)
+
 - **Frontend:** React + TypeScript (단순한 SPA)
-    
+
 - **인증:** 기본 세션 기반 인증
     
 
@@ -61,7 +61,7 @@ FundFlow v1.2는 PE 펀드의 SALT 계산 워크플로우를 검증하는 **초�
 
 프로토타입 단계의 엑셀 처리는 **동기식 단일 스레드 처리**로 구현하여 복잡성을 최소화합니다.
 
-`파일 업로드 (React)` → `즉시 검증 (Flask)` → `SALT 계산 (pandas)` → `결과 반환`
+`파일 업로드 (React)` → `즉시 검증 (FastAPI)` → `SALT 계산 (pandas)` → `결과 반환`
 
 #### **2.2. 파일 처리 기술 선정**
 
@@ -76,12 +76,12 @@ FundFlow v1.2는 PE 펀드의 SALT 계산 워크플로우를 검증하는 **초�
 
 #### **2.3. 파일 처리 워크플로우**
 
-1. **업로드 및 검증:** React 프론트엔드에서 단일 엑셀 파일을 업로드하면, Flask가 기본적인 파일 형식과 크기를 검증합니다.
-    
+1. **업로드 및 검증:** React 프론트엔드에서 단일 엑셀 파일을 업로드하면, FastAPI가 기본적인 파일 형식과 크기를 검증합니다.
+
 2. **즉시 처리:** 복잡한 큐잉 없이 업로드와 동시에 **동기식으로 즉시 처리**합니다.
-    
+
 3. **SALT 계산:** 시스템에 사전 저장된 EY 데이터와 업로드된 포트폴리오 데이터를 매핑하여 계산을 수행합니다.
-    
+
 4. **결과 제공:** 계산 완료 후 즉시 결과를 사용자에게 표시하고 다운로드 링크를 제공합니다.
     
 
@@ -93,43 +93,42 @@ FundFlow v1.2는 PE 펀드의 SALT 계산 워크플로우를 검증하는 **초�
 
 #### **3.2. EY 데이터 관리**
 
-- **데이터 저장:** EY 제공 엑셀 데이터를 PostgreSQL 테이블(`ey_salt_rules`)에 **미리 로드**하여 저장합니다.
-    
+- **데이터 저장:** EY 제공 엑셀 데이터를 SQLite 테이블(`ey_salt_rules`)에 **미리 로드**하여 저장합니다.
+
 - **계산 알고리즘:**
-    
+
     1. 사용자의 포트폴리오 데이터(회사명, 주별 매출, LP 지분율)를 읽어옵니다.
-        
+
     2. `ey_salt_rules` 테이블에서 해당 주의 세법 규칙을 조회합니다.
-        
+
     3. **단순한 for-loop**를 사용하여 각 포트폴리오 회사별, 주별 계산을 순차적으로 수행합니다.
-        
+
     4. 계산된 결과를 `salt_calculations` 테이블에 저장하고 엑셀로 출력합니다.
         
 
-### **4. 클라우드 인프라 (Cloud Infrastructure)**
+### **4. 개발 환경 및 배포 (Development & Deployment)**
 
-#### **4.1. 최소한의 AWS 구성**
+#### **4.1. Docker 기반 개발 환경**
 
-프로토타입 단계에서는 **비용 효율적이고 관리하기 쉬운 단순한 구성**을 채택합니다.
+모든 환경에서 **Docker + Docker Compose**를 사용하여 일관된 개발/배포 환경을 제공합니다.
 
-- **컴퓨팅 (Compute):** **AWS EC2 t3.medium** 단일 인스턴스에서 Flask 애플리케이션 실행
-    
-- **데이터베이스 (Database):** **RDS PostgreSQL** (단일 AZ, 백업만 설정)
-    
-- **캐시 (Cache):** **ElastiCache Redis** 단일 노드 (세션 저장용)
-    
-- **스토리지 (Storage):** **Amazon S3** (업로드 파일 및 결과 파일 저장)
-    
+- **개발 환경:** Docker Compose로 FastAPI, React, SQLite 컨테이너 통합 실행
+
+- **데이터베이스:** SQLite 파일을 컨테이너 볼륨으로 마운트
+
+- **파일 저장:** 로컬 파일시스템 볼륨 (업로드 파일 및 결과 파일)
+
+- **캐싱:** 파일시스템 기반 캐싱 (임시 파일 및 계산 결과)
 
 #### **4.2. 기본적인 보안 설정**
 
-완전한 SOC 2 준수보다는 **기본적인 보안 요구사항**만 충족합니다.
+프로토타입 단계의 **필수적인 보안 요구사항**만 충족합니다.
 
-- **네트워크:** VPC + Security Group으로 기본 방화벽 설정
-    
-- **데이터 암호화:** S3와 RDS의 기본 암호화 옵션 활성화
-    
-- **접근 제어:** IAM 역할 기반의 기본적인 권한 관리
+- **데이터 전송:** HTTPS 강제 (프로덕션 환경)
+
+- **파일 검증:** 업로드 파일 형식 및 크기 제한
+
+- **접근 제어:** 기본적인 세션 기반 인증
     
 
 ### **5. API 설계 (API Design)**
@@ -151,16 +150,16 @@ FundFlow v1.2는 PE 펀드의 SALT 계산 워크플로우를 검증하는 **초�
 
 ### **6. 데이터베이스 설계 (Database Design)**
 
-#### **6.1. 단순화된 스키마**
+#### **6.1. 단순화된 SQLite 스키마**
 
 프로토타입에 필요한 **핵심 테이블**만 구성합니다.
 
 - **users:** 사용자 정보 (id, email, company_name, created_at)
-    
+
 - **user_sessions:** 세션 정보 (session_id, user_id, upload_filename, created_at)
-    
+
 - **ey_salt_rules:** 사전 저장된 EY 데이터 (state, tax_rate, apportionment_formula, effective_date)
-    
+
 - **salt_calculations:** 계산 결과 (session_id, portfolio_company, state, lp_name, allocated_amount)
     
 
@@ -230,10 +229,10 @@ React를 사용하여 **직관적이고 단순한 인터페이스**를 구현합
 #### **10.1. 기본적인 모니터링**
 
 - **로깅:** 파일 기반 로깅 (JSON 형식)
-    
-- **메트릭:** **AWS CloudWatch** 기본 시스템 메트릭만 수집
-    
-- **알림:** 시스템 다운 시에만 이메일 알림
+
+- **메트릭:** Docker 컨테이너 기본 메트릭
+
+- **알림:** 기본적인 로그 모니터링
     
 
 ### **11. 배포 및 DevOps (Deployment & DevOps)**
@@ -249,9 +248,9 @@ React를 사용하여 **직관적이고 단순한 인터페이스**를 구현합
 
 #### **11.2. CI/CD (최소한 수준)**
 
-- **GitHub Actions**를 사용한 기본적인 테스트 및 배포 자동화
-    
-- 복잡한 Blue/Green 배포 대신 **간단한 롤링 업데이트**
+- **GitHub Actions**를 사용한 기본적인 테스트 및 Docker 이미지 빌드
+
+- **Docker Compose**를 통한 간단한 배포 프로세스
     
 
 ### **12. 테스트 전략 (Testing Strategy)**

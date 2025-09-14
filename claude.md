@@ -137,6 +137,8 @@ make lint-fix        # Auto-fix linting issues
 - ✅ Docker development environment
 - ✅ Basic API endpoints defined
 - ✅ File upload infrastructure
+- ✅ Updated TDD v1.2 with correct tech stack specifications
+- ✅ Feature specification created for file upload and validation
 - 🔄 Currently working on: Core SALT calculation engine implementation
 - ⏳ Next: Frontend integration with backend APIs
 - ⏳ Pending: Excel validation and error handling
@@ -224,3 +226,12 @@ docker-compose logs backend    # Backend logs
 docker-compose logs frontend   # Frontend logs
 make logs                     # All application logs
 ```
+
+## MCP Playwright
+- Always run in headless mode
+
+## Key Rules
+1. Always use uv for package management operations
+2. Never use pip install directly - use uv add instead
+3. Keep .venv in the project root directory
+4. Ensure virtual environment is activated before running Python code
