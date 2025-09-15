@@ -52,9 +52,9 @@ FundFlow/
 ### Backend
 - **Framework**: FastAPI 0.104+ (async/await support)
 - **Database**: SQLite with SQLAlchemy ORM
-- **File Processing**: pandas 2.0+, openpyxl 3.1+
-- **Validation**: Pydantic v2
-- **Testing**: pytest, pytest-asyncio
+- **File Processing**: pandas 2.0+, openpyxl 3.1+ (Excel parsing and validation)
+- **Validation**: Pydantic v2, structured error collection
+- **Testing**: pytest, pytest-asyncio, real dependencies (SQLite, filesystem)
 - **Code Quality**: black, isort, mypy, ruff
 
 ### Frontend
@@ -139,9 +139,13 @@ make lint-fix        # Auto-fix linting issues
 - ✅ File upload infrastructure
 - ✅ Updated TDD v1.2 with correct tech stack specifications
 - ✅ Feature specification created for file upload and validation
-- 🔄 Currently working on: Core SALT calculation engine implementation
-- ⏳ Next: Frontend integration with backend APIs
-- ⏳ Pending: Excel validation and error handling
+- ✅ Implementation plan Phase 0 (Research) and Phase 1 (Design) completed
+- ✅ API contracts defined (OpenAPI spec with upload, validation, progress endpoints)
+- ✅ Data model designed (User, Session, Investor, Distribution, ValidationError entities)
+- ✅ Epic 1 specification files created with comprehensive development workflow
+- 🔄 Currently working on: Task generation and implementation execution
+- ⏳ Next: Database models and validation pipeline implementation
+- ⏳ Pending: Frontend UI with Shadcn components, Playwright E2E testing
 
 ## Prototype Scope & Limitations
 ### In Scope for v1.2

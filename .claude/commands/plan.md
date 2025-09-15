@@ -19,8 +19,9 @@ Given the implementation details provided as an argument, do this:
    - Run the Execution Flow (main) function steps 1-10
    - The template is self-contained and executable
    - Follow error handling and gate checks as specified
+   - Apply Unit → Contract → Integration → E2E testing strategy throughout
    - Let the template guide artifact generation in $SPECS_DIR:
-     * Phase 0 generates research.md
+     * Phase 0 generates research.md (with proper testing strategy)
      * Phase 1 generates data-model.md, contracts/, quickstart.md
      * Phase 2 generates tasks.md
    - Incorporate user-provided details from arguments into Technical Context: $ARGUMENTS
