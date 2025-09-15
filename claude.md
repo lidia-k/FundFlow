@@ -8,6 +8,7 @@ FundFlow is an AI-powered automation platform designed to solve manual SALT (Sta
 ## Key Documents
 - PRD: `prototype/v1.2/FundFlow PRD v1.2.md` - Product requirements focused on simplified Excel upload workflow with pre-stored EY SALT data
 - TDD: `prototype/v1.2/FundFlow TDD v1.2.md` - Technical design using traditional 3-tier web architecture with Python Flask + React
+- Architecture Decisions: `docs/architecture/` - Architectural decision records and design documentation
 
 ## Project Structure
 ```
@@ -30,6 +31,8 @@ FundFlow/
 │   ├── tests/              # Frontend tests (Jest)
 │   └── package.json        # Node.js dependencies
 ├── data/                   # Sample data and templates
+├── docs/                   # Project documentation
+│   └── architecture/       # Architecture decisions and design docs
 ├── docker-compose.yml      # Development environment
 └── Makefile               # Development commands
 ```
@@ -47,6 +50,9 @@ FundFlow/
 2. Rapid prototyping for user feedback
 3. User experience validation focus
 4. Future scalability considerations
+5. Clean service boundaries (preparing for v1.3 library extraction)
+
+**Architecture Decisions**: See [Architecture Decision Records](docs/architecture/README.md) for detailed rationale behind design choices.
 
 ## Tech Stack & Dependencies
 ### Backend
@@ -143,6 +149,7 @@ make lint-fix        # Auto-fix linting issues
 - ✅ API contracts defined (OpenAPI spec with upload, validation, progress endpoints)
 - ✅ Data model designed (User, Session, Investor, Distribution, ValidationError entities)
 - ✅ Epic 1 specification files created with comprehensive development workflow
+- ✅ Architecture Decision Records established with ADR-0001 (monolithic approach)
 - 🔄 Currently working on: Task generation and implementation execution
 - ⏳ Next: Database models and validation pipeline implementation
 - ⏳ Pending: Frontend UI with Shadcn components, Playwright E2E testing
