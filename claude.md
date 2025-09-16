@@ -150,6 +150,8 @@ make lint-fix        # Auto-fix linting issues
 - ✅ Data model designed (User, Session, Investor, Distribution, ValidationError entities)
 - ✅ Epic 1 specification files created with comprehensive development workflow
 - ✅ Architecture Decision Records established with ADR-0001 (monolithic approach)
+- ✅ Updated data model for persistent investors and exemption fields support (v1.2 format)
+- ✅ Enhanced specifications to support 9-column Excel format with CO/NM exemption tracking
 - 🔄 Currently working on: Task generation and implementation execution
 - ⏳ Next: Database models and validation pipeline implementation
 - ⏳ Pending: Frontend UI with Shadcn components, Playwright E2E testing

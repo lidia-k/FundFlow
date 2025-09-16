@@ -66,27 +66,21 @@ queued -> uploading -> parsing -> validating -> saving -> completed
 
 **Relationships**:
 - Many-to-one with User
-- One-to-many with Investor
-- One-to-many with Distribution
+- One-to-many with Distribution (for audit trail)
 - One-to-many with ValidationError
 
 ---
 
 ### Investor Entity
-**Purpose**: Represents investor information from uploaded Excel files
+**Purpose**: Represents persistent investor entities across multiple uploads and quarters
 **Storage**: `investors` table
 
 ```python
 class Investor:
     id: int (Primary Key)
-    session_id: str (Foreign Key -> user_sessions.session_id)
-    fund_code: str (Extracted from filename)
-    period_quarter: str (Q1-Q4, extracted from filename)
-    period_year: int (Extracted from filename)
     investor_name: str (Required, from Excel)
     investor_entity_type: InvestorEntityType (Enum, from Excel)
     investor_tax_state: str (2-letter state code, from Excel)
-    row_number: int (Original Excel row for error tracking)
     created_at: datetime (Auto-generated)
     updated_at: datetime (Auto-updated on changes)
 ```
@@ -95,10 +89,7 @@ class Investor:
 - investor_name: Non-empty string, max 255 characters
 - investor_entity_type: Must be one of enumerated values
 - investor_tax_state: Must be valid US state code (2 letters, uppercase) or "DC"
-- fund_code: Alphanumeric, max 50 characters
-- period_quarter: Must match Q1, Q2, Q3, or Q4
-- period_year: Must be 4-digit year >= 2020
-- Unique constraint on (session_id, fund_code, investor_name) - case-insensitive
+- Unique constraint on (investor_name, investor_entity_type, investor_tax_state) - case-insensitive
 
 **InvestorEntityType Enum**:
 - CORPORATION
@@ -113,27 +104,37 @@ class Investor:
 - TRUST
 
 **Relationships**:
-- Many-to-one with UserSession
 - One-to-many with Distribution
 
 ---
 
 ### Distribution Entity
-**Purpose**: Represents quarterly distribution amounts by jurisdiction
+**Purpose**: Represents quarterly distribution amounts by jurisdiction for specific periods
 **Storage**: `distributions` table
 
 ```python
 class Distribution:
     id: int (Primary Key)
     investor_id: int (Foreign Key -> investors.id)
+    session_id: str (Foreign Key -> user_sessions.session_id, for audit trail)
+    fund_code: str (Extracted from filename)
+    period_quarter: str (Q1-Q4, extracted from filename)
+    period_year: int (Extracted from filename)
     jurisdiction: JurisdictionType (Enum: TX_NM or CO)
     amount: decimal.Decimal (Required, >= 0)
+    composite_exemption: bool (Default False, from Excel exemption columns)
+    withholding_exemption: bool (Default False, from Excel exemption columns)
     created_at: datetime (Auto-generated)
 ```
 
 **Validation Rules**:
 - amount: Must be >= 0, precision to 2 decimal places
 - jurisdiction: Must be TX_NM or CO
+- fund_code: Alphanumeric, max 50 characters
+- period_quarter: Must match Q1, Q2, Q3, or Q4
+- period_year: Must be 4-digit year >= 2020
+- composite_exemption: Boolean, derived from Excel values ("Exemption" → True, all else → False)
+- withholding_exemption: Boolean, derived from Excel values ("Exemption" → True, all else → False)
 - At least one distribution per investor must have amount > 0
 
 **JurisdictionType Enum**:
@@ -141,12 +142,16 @@ class Distribution:
 - CO (Colorado)
 
 **Business Rules**:
-- Each investor can have 0-2 distribution records (one per jurisdiction)
-- Total distribution amount across all jurisdictions must be > 0 per investor
+- Each investor can have 0-2 distribution records per period (one per jurisdiction)
+- Total distribution amount across all jurisdictions must be > 0 per investor per period
 - Amounts are stored with 2 decimal precision for currency
+- Exemption flags are jurisdiction-specific: CO exemptions apply to CO jurisdiction, NM exemptions apply to TX_NM jurisdiction
+- Exemption mapping: "Exemption" text → True, empty/"-"/other → False
+- Unique constraint on (investor_id, fund_code, period_quarter, period_year, jurisdiction)
 
 **Relationships**:
 - Many-to-one with Investor
+- Many-to-one with UserSession (for audit trail)
 
 ---
 
@@ -226,20 +231,39 @@ class EYSALTRule:
 ## Database Relationships
 
 ```
-User (1) ─── (N) UserSession ─── (N) Investor ─── (N) Distribution
+User (1) ─── (N) UserSession ─── (N) ValidationError
                      │
-                     └─── (N) ValidationError
+                     └─── (N) Distribution ─── (N) Investor (1)
+                                    │
+                                    └─── (1) Investor (persistent)
 ```
+
+**Key Changes**:
+- Investors are now persistent entities, not tied to specific upload sessions
+- Distributions link to both Investor (business relationship) and UserSession (audit trail)
+- Investor upsert logic: Find existing investor by (name, entity_type, tax_state) or create new
 
 ## File Processing Data Flow
 
 1. **Upload**: File uploaded to UserSession, status = "queued"
 2. **Filename Parse**: Extract fund_code, period_quarter, period_year
 3. **Excel Parse**: Read first worksheet, normalize headers
-4. **Row Validation**: Create Investor records with validation
-5. **Distribution Creation**: Create Distribution records per jurisdiction
+4. **Investor Upsert**: Find existing investor by (name, entity_type, tax_state) or create new
+5. **Distribution Creation**: Create Distribution records linking to persistent Investor + UserSession with exemption flags
 6. **Error Collection**: Create ValidationError records for issues
 7. **Completion**: Update UserSession status and counts
+
+**Investor Persistence Logic**:
+- For each Excel row, check if investor exists: `SELECT * FROM investors WHERE investor_name = ? AND investor_entity_type = ? AND investor_tax_state = ?`
+- If found: Use existing investor_id for distribution records
+- If not found: Create new investor record, use new investor_id
+- This ensures investors persist across multiple quarters/uploads
+
+**Distribution Creation with Exemptions**:
+- For TX_NM jurisdiction: Use `distribution_tx_nm` amount, `nm_composite_exemption`, `nm_withholding_exemption`
+- For CO jurisdiction: Use `distribution_co` amount, `co_composite_exemption`, `co_withholding_exemption`
+- Convert exemption text: "Exemption" (case-insensitive) → True, all else → False
+- Create distribution record only if amount > 0 for that jurisdiction
 
 ## Data Integrity Constraints
 
@@ -249,15 +273,18 @@ User (1) ─── (N) UserSession ─── (N) Investor ─── (N) Distribu
 
 ### Foreign Keys
 - All foreign key relationships enforced at database level
-- Cascade delete: UserSession deletion removes related Investors, Distributions, ValidationErrors
+- Cascade delete: UserSession deletion removes related Distributions and ValidationErrors (but NOT Investors)
+- Investors are persistent: Deleting UserSession does not delete Investor records
 
 ### Unique Constraints
 - User.email (unique across system)
-- (Investor.session_id, Investor.fund_code, Investor.investor_name) case-insensitive
-- (Distribution.investor_id, Distribution.jurisdiction)
+- (Investor.investor_name, Investor.investor_entity_type, Investor.investor_tax_state) case-insensitive
+- (Distribution.investor_id, Distribution.fund_code, Distribution.period_quarter, Distribution.period_year, Distribution.jurisdiction)
 
 ### Check Constraints
 - Distribution.amount >= 0
+- Distribution.composite_exemption IN (TRUE, FALSE)
+- Distribution.withholding_exemption IN (TRUE, FALSE)
 - UserSession.progress_percentage BETWEEN 0 AND 100
 - UserSession.file_size <= 10485760 (10MB)
 
@@ -267,15 +294,17 @@ User (1) ─── (N) UserSession ─── (N) Investor ─── (N) Distribu
 ```sql
 CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX idx_user_sessions_status ON user_sessions(status);
-CREATE INDEX idx_investors_session_id ON investors(session_id);
+CREATE INDEX idx_investors_identity ON investors(investor_name, investor_entity_type, investor_tax_state);
 CREATE INDEX idx_distributions_investor_id ON distributions(investor_id);
+CREATE INDEX idx_distributions_session_id ON distributions(session_id);
 CREATE INDEX idx_validation_errors_session_id ON validation_errors(session_id);
 CREATE INDEX idx_validation_errors_severity ON validation_errors(severity);
 ```
 
 ### Business Logic Queries
 ```sql
-CREATE INDEX idx_investors_fund_period ON investors(fund_code, period_quarter, period_year);
+CREATE INDEX idx_distributions_fund_period ON distributions(fund_code, period_quarter, period_year);
+CREATE INDEX idx_distributions_investor_period ON distributions(investor_id, fund_code, period_quarter, period_year);
 CREATE INDEX idx_ey_salt_rules_state_active ON ey_salt_rules(state, is_active);
 ```
 
@@ -283,18 +312,33 @@ CREATE INDEX idx_ey_salt_rules_state_active ON ey_salt_rules(state, is_active);
 
 ### Per Upload Session
 - 1 UserSession record
-- ~10-20 Investor records (max 50,000)
-- ~20-40 Distribution records (2 per investor max)
+- ~0-20 NEW Investor records (only if investors don't already exist)
+- ~20-40 Distribution records (2 per investor max, always created)
 - ~0-100 ValidationError records (errors/warnings)
 
 ### Storage Requirements
 - UserSession: ~200 bytes per record
-- Investor: ~300 bytes per record
-- Distribution: ~50 bytes per record
+- Investor: ~250 bytes per record (reduced fields)
+- Distribution: ~110 bytes per record (increased fields with exemption booleans)
 - ValidationError: ~200 bytes per record
-- **Total per session**: ~10KB (typical) to 15MB (max with 50k investors)
+- **Total per session**: ~8KB (typical) to 5.5MB (max with 50k distributions)
 
 ### Database Growth (3-5 concurrent users, daily usage)
-- Daily: ~50-100 sessions = ~500KB-1.5MB
+**Investor Growth**: Slower growth after initial period as investors become persistent
+- Initial period: ~10-20 new investors per session
+- Steady state: ~2-5 new investors per session (95% are existing)
+
+**Distribution Growth**: Linear growth with uploads
+- Daily: ~50-100 sessions = ~1,000-2,000 new distributions
+- Monthly: ~30,000-60,000 new distributions
+- Yearly: ~360,000-720,000 distribution records
+
+**Total Database Size**:
+- Daily: ~500KB-1MB
 - Monthly: ~15-30MB
 - Yearly: ~180-360MB (well within SQLite limits)
+
+**Business Queries Enabled**:
+- "Show all distributions for Pension Fund X across all quarters"
+- "Which investors participated in Q3 2024 vs Q4 2024?"
+- "What's the total distribution history for Fund ABC?"

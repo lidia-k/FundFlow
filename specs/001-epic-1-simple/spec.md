@@ -35,14 +35,22 @@ As Tax Lead Sarah, I drag and drop a portfolio Excel file, see a progress bar du
     - `Investor Tax State`
     - `Distribution \nTX and NM`
     - `Distribution \nCO`
+    - `CO Composite Exemption`
+    - `CO Withholding Exemption`
+    - `NM Composite Exemption`
+    - `NM Withholding Exemption`
 - Header normalization:
     - Trim, collapse internal whitespace, convert newlines to single spaces for matching
 - Canonical fields mapped:
-    - investor_name  Investor Name
-    - investor_entity_type  Investor Entity Type
-    - investor_tax_state  Investor Tax State
-    - distribution_tx_nm  Distribution TX and NM
-    - distribution_co  Distribution CO
+    - investor_name â† Investor Name
+    - investor_entity_type â† Investor Entity Type
+    - investor_tax_state â† Investor Tax State
+    - distribution_tx_nm â† Distribution TX and NM
+    - distribution_co â† Distribution CO
+    - co_composite_exemption â† CO Composite Exemption
+    - co_withholding_exemption â† CO Withholding Exemption
+    - nm_composite_exemption â† NM Composite Exemption
+    - nm_withholding_exemption â† NM Withholding Exemption
 - Type and value checks:
     - investor_name: non-empty string
     - investor_entity_type: one of
@@ -52,11 +60,19 @@ As Tax Lead Sarah, I drag and drop a portfolio Excel file, see a progress bar du
     - investor_tax_state: 2-letter US state, DC, uppercase
     - distribution_tx_nm: numeric, >= 0
     - distribution_co: numeric, >= 0
+    - co_composite_exemption: text, must be "Exemption", "-", or empty
+    - co_withholding_exemption: text, must be "Exemption", "-", or empty
+    - nm_composite_exemption: text, must be "Exemption", "-", or empty
+    - nm_withholding_exemption: text, must be "Exemption", "-", or empty
     - At least one of distribution_tx_nm or distribution_co must be > 0
 - Number parsing rules:
     - Allow thousands separators, leading/trailing spaces
     - Allow parentheses to indicate negatives, but negatives are invalid and raise `NEGATIVE_AMOUNT`
     - Blank numeric cells are treated as 0
+- Exemption field parsing rules:
+    - "Exemption" text (case-insensitive) â†’ convert to True
+    - "-", blank, or any other value â†’ convert to False
+    - Trim whitespace before comparison
 - Duplicate rule:
     - No duplicate investor within the same file by key `(fund_code, investor_name)`
     - Normalize by trim and case-insensitive compare on investor_name
@@ -76,10 +92,11 @@ As Tax Lead Sarah, I drag and drop a portfolio Excel file, see a progress bar du
 ### REQ 1.4 - Template download
 
 - Button downloads `portfolio_template.xlsx`
-- Template contains the 5 canonical columns and 5 sample rows
+- Template contains the 9 canonical columns and 5 sample rows
 - Excel data validation:
     - Investor Tax State list: 50 states + DC
     - Investor Entity Type list: the enumeration above
+    - Exemption columns dropdown: "Exemption", "-"
 
 ### REQ 1.5 - Data preview
 
@@ -94,8 +111,8 @@ As Tax Lead Sarah, I drag and drop a portfolio Excel file, see a progress bar du
 - Idempotency: SHA256 of file bytes. Re-upload of identical file does not reinsert
 - Upsert key for investors: `(fund_code, investor_name)`
 - For each row, insert or upsert distributions:
-    - jurisdiction `TX_NM` with `distribution_tx_nm`
-    - jurisdiction `CO` with `distribution_co`
+    - jurisdiction `TX_NM` with `distribution_tx_nm`, `nm_composite_exemption`, `nm_withholding_exemption`
+    - jurisdiction `CO` with `distribution_co`, `co_composite_exemption`, `co_withholding_exemption`
 
 ### REQ 1.7 - Metadata extraction from filename
 
@@ -106,26 +123,26 @@ As Tax Lead Sarah, I drag and drop a portfolio Excel file, see a progress bar du
 ## Execution Flow (main)
 ```
 1. Parse user description from Input
-   ’ If empty: ERROR "No feature description provided"
+   ï¿½ If empty: ERROR "No feature description provided"
 2. Extract key concepts from description
-   ’ Identify: actors, actions, data, constraints
+   ï¿½ Identify: actors, actions, data, constraints
 3. For each unclear aspect:
-   ’ Mark with [NEEDS CLARIFICATION: specific question]
+   ï¿½ Mark with [NEEDS CLARIFICATION: specific question]
 4. Fill User Scenarios & Testing section
-   ’ If no clear user flow: ERROR "Cannot determine user scenarios"
+   ï¿½ If no clear user flow: ERROR "Cannot determine user scenarios"
 5. Generate Functional Requirements
-   ’ Each requirement must be testable
-   ’ Mark ambiguous requirements
+   ï¿½ Each requirement must be testable
+   ï¿½ Mark ambiguous requirements
 6. Identify Key Entities (if data involved)
 7. Run Review Checklist
-   ’ If any [NEEDS CLARIFICATION]: WARN "Spec has uncertainties"
-   ’ If implementation details found: ERROR "Remove tech details"
+   ï¿½ If any [NEEDS CLARIFICATION]: WARN "Spec has uncertainties"
+   ï¿½ If implementation details found: ERROR "Remove tech details"
 8. Return: SUCCESS (spec ready for planning)
 ```
 
 ---
 
-## ¡ Quick Guidelines
+## ï¿½ Quick Guidelines
 -  Focus on WHAT users need and WHY
 - L Avoid HOW to implement (no tech stack, APIs, code structure)
 - =e Written for business stakeholders, not developers
