@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.core.config import settings, ensure_directories
-from app.api.routes import router as api_router
+from src.api import router as api_router
 
 # Ensure required directories exist
 ensure_directories()
