@@ -201,33 +201,6 @@ class ValidationError:
 
 ---
 
-### EY SALT Rules Entity (Pre-populated)
-**Purpose**: Contains pre-loaded EY tax calculation rules
-**Storage**: `ey_salt_rules` table
-
-```python
-class EYSALTRule:
-    id: int (Primary Key)
-    state: str (2-letter state code)
-    tax_rate: decimal.Decimal (Tax rate percentage)
-    apportionment_formula: str (Tax calculation formula)
-    effective_date: date (When rule became effective)
-    created_at: datetime (Auto-generated)
-    is_active: bool (Default True)
-```
-
-**Validation Rules**:
-- state: Must be valid US state code (2 letters, uppercase) or "DC"
-- tax_rate: Must be >= 0, max 100 (percentage)
-- apportionment_formula: Must be non-empty string
-- effective_date: Must be valid date
-- Only one active rule per state
-
-**Relationships**:
-- Used for SALT calculations (read-only for upload feature)
-
----
-
 ## Database Relationships
 
 ```
@@ -305,7 +278,6 @@ CREATE INDEX idx_validation_errors_severity ON validation_errors(severity);
 ```sql
 CREATE INDEX idx_distributions_fund_period ON distributions(fund_code, period_quarter, period_year);
 CREATE INDEX idx_distributions_investor_period ON distributions(investor_id, fund_code, period_quarter, period_year);
-CREATE INDEX idx_ey_salt_rules_state_active ON ey_salt_rules(state, is_active);
 ```
 
 ## Data Size Estimates (Prototype Scale)

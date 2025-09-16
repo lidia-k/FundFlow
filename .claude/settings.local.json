@@ -8,7 +8,9 @@
       "Bash(git mv:*)",
       "Bash(mkdir:*)",
       "Bash(chmod:*)",
-      "Bash(.specify/scripts/bash/setup-plan.sh:*)"
+      "Bash(.specify/scripts/bash/setup-plan.sh:*)",
+      "Bash(.specify/scripts/bash/check-task-prerequisites.sh:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
