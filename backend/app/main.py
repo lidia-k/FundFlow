@@ -1,10 +1,21 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 import os
+import logging
+import traceback
 
 from app.core.config import settings, ensure_directories
 from src.api import router as api_router
+from src.database.connection import init_db
+
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper()),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Ensure required directories exist
 ensure_directories()
@@ -18,6 +29,20 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    logger.info("Starting up FundFlow application...")
+
+    # Import all models to ensure they're registered with SQLAlchemy
+    from src.models import User, UserSession, Investor, Distribution, ValidationError
+
+    # Initialize database tables
+    logger.info("Initializing database...")
+    init_db()
+    logger.info("Database initialized successfully")
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -26,6 +51,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all requests and responses for debugging"""
+    try:
+        logger.info(f"Request: {request.method} {request.url}")
+        response = await call_next(request)
+        logger.info(f"Response: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"Request failed: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal server error: {str(e)}"}
+        )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler with detailed logging"""
+    logger.error(f"Unhandled exception: {str(exc)}")
+    logger.error(f"Request: {request.method} {request.url}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": f"Internal server error: {str(exc)}",
+            "type": type(exc).__name__
+        }
+    )
 
 # Include API routes
 app.include_router(api_router, prefix="/api")
