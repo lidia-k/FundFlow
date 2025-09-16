@@ -158,6 +158,7 @@ make lint-fix        # Auto-fix linting issues
 - ✅ E2E testing: Playwright test suite covering complete upload workflow
 - ✅ **Docker Configuration Fixed** - Resolved pydantic-settings parsing errors, dependency conflicts, and health checks
 - ✅ **v1.3 Format Support** - Updated ExcelService with flexible column detection for dynamic state-based parsing
+- ✅ **Project Onboarding Complete** - Comprehensive memory files created with project overview, tech stack, conventions, and development workflows
 - 🎯 **Ready for user validation**: Working end-to-end prototype with all containers healthy
 
 ## Prototype Scope & Limitations
@@ -246,6 +247,11 @@ make logs                     # All application logs
 
 ## MCP Playwright
 - Always run in headless mode
+
+## MCP Context 7 
+Always use context7 when I need code generation, setup or configuration steps, or
+library/API documentation. This means you should automatically use the Context7 MCP
+tools to resolve library id and get library docs without me having to explicitly ask.
 
 ## Key Rules
 1. Always use uv for package management operations
