@@ -48,19 +48,14 @@ class ExcelParsingResult:
 
 
 class ExcelService:
-    """Service for Excel file validation and parsing."""
+    """Service for Excel file validation and parsing (v1.3 format)."""
 
-    # Required column headers
+    # Required column headers (v1.3 format)
     REQUIRED_HEADERS = [
         "Investor Name",
         "Investor Entity Type",
         "Investor Tax State",
-        "Distribution \\nTX and NM",
-        "Distribution \\nCO",
-        "CO Composite Exemption",
-        "CO Withholding Exemption",
-        "NM Composite Exemption",
-        "NM Withholding Exemption"
+        "Percentage"
     ]
 
     # Valid entity types
@@ -88,6 +83,11 @@ class ExcelService:
 
     def __init__(self):
         self.errors: List[ExcelValidationError] = []
+        self.detected_columns: Dict[str, Dict[str, str]] = {
+            'distribution': {},
+            'withholding_exemption': {},
+            'composite_exemption': {}
+        }
 
     def calculate_file_hash(self, file_path: Path) -> str:
         """Calculate SHA256 hash of file."""
@@ -99,19 +99,20 @@ class ExcelService:
 
     def extract_fund_info_from_filename(self, filename: str) -> Optional[Dict[str, str]]:
         """Extract fund code, quarter, and year from filename."""
-        pattern = r"^(.+)_Q([1-4]) (\d{4}) distribution data\.(xlsx|xls)$"
+        # v1.3 format pattern - uploaded as XLSX but following CSV naming convention
+        pattern = r"^\(Input Data\) (.+)_Q([1-4]) (\d{4}) distribution data_v[\d\.]+\.(xlsx|xls)$"
         match = re.match(pattern, filename)
 
-        if not match:
-            return None
+        if match:
+            fund_code, quarter, year, extension = match.groups()
+            return {
+                "fund_code": fund_code.strip(),
+                "period_quarter": f"Q{quarter}",
+                "period_year": year,
+                "file_extension": extension
+            }
 
-        fund_code, quarter, year, extension = match.groups()
-        return {
-            "fund_code": fund_code.strip(),
-            "period_quarter": f"Q{quarter}",
-            "period_year": year,
-            "file_extension": extension
-        }
+        return None
 
     def validate_file_size(self, file_path: Path) -> bool:
         """Validate file size (max 10MB)."""
@@ -133,10 +134,73 @@ class ExcelService:
         """Normalize header by trimming and collapsing whitespace."""
         return re.sub(r'\s+', ' ', str(header).strip())
 
+    def detect_dynamic_columns(self, df: pd.DataFrame) -> bool:
+        """Detect distribution, withholding exemption, and composite exemption columns by pattern."""
+        normalized_headers = [self.normalize_header(col) for col in df.columns]
+
+        # Reset detected columns
+        self.detected_columns = {
+            'distribution': {},
+            'withholding_exemption': {},
+            'composite_exemption': {}
+        }
+
+        for header in normalized_headers:
+            # Distribution pattern: "Distribution" + state abbreviation
+            distribution_match = re.match(r'^Distribution\s+([A-Z]{2})$', header, re.IGNORECASE)
+            if distribution_match:
+                state = distribution_match.group(1).upper()
+                if state in self.VALID_STATE_CODES:
+                    self.detected_columns['distribution'][state] = header
+                continue
+
+            # Withholding Exemption pattern: state + "Withholding Exemption"
+            withholding_match = re.match(r'^([A-Z]{2})\s+Withholding\s+Exemption$', header, re.IGNORECASE)
+            if withholding_match:
+                state = withholding_match.group(1).upper()
+                if state in self.VALID_STATE_CODES:
+                    self.detected_columns['withholding_exemption'][state] = header
+                continue
+
+            # Composite Exemption pattern: state + "Composite Exemption" (various formats)
+            composite_match = re.match(r'^([A-Z]{2})\s+Composite\s*Exemption$', header, re.IGNORECASE)
+            if composite_match:
+                state = composite_match.group(1).upper()
+                if state in self.VALID_STATE_CODES:
+                    self.detected_columns['composite_exemption'][state] = header
+                continue
+
+            # Alternative composite pattern: state + "CompositeExemption" (no space)
+            composite_match2 = re.match(r'^([A-Z]{2})\s*CompositeExemption$', header, re.IGNORECASE)
+            if composite_match2:
+                state = composite_match2.group(1).upper()
+                if state in self.VALID_STATE_CODES:
+                    self.detected_columns['composite_exemption'][state] = header
+                continue
+
+        # Check if we found at least one distribution column
+        if not self.detected_columns['distribution']:
+            self.errors.append(ExcelValidationError(
+                row_number=0,
+                column_name="distribution_columns",
+                error_code="NO_DISTRIBUTION_COLUMNS",
+                error_message="No distribution columns found. Expected format: 'Distribution XX' where XX is state code",
+                severity=ErrorSeverity.ERROR
+            ))
+            return False
+
+        return True
+
+
     def validate_headers(self, df: pd.DataFrame) -> bool:
         """Validate that all required headers are present."""
         normalized_headers = [self.normalize_header(col) for col in df.columns]
 
+        # Detect dynamic columns for distribution and exemptions
+        if not self.detect_dynamic_columns(df):
+            return False
+
+        # Check required base headers
         missing_headers = []
         for required_header in self.REQUIRED_HEADERS:
             normalized_required = self.normalize_header(required_header)
@@ -196,10 +260,24 @@ class ExcelService:
             return False
 
         str_value = str(value).strip().lower()
-        return str_value == "exemption"
+        return str_value in ["exemption", "x", "true", "yes", "1"]
 
-    def validate_row_data(self, row_data: Dict[str, Any], row_num: int) -> bool:
-        """Validate individual row data."""
+    def parse_percentage_value(self, value: Any) -> Optional[Decimal]:
+        """Parse percentage value (for v1.3 format, ignored for now)."""
+        if pd.isna(value) or value == "":
+            return None
+
+        str_value = str(value).strip()
+        # Remove % symbol if present
+        str_value = str_value.replace('%', '')
+
+        try:
+            return Decimal(str_value)
+        except (InvalidOperation, ValueError):
+            return None
+
+    def validate_base_fields(self, row_data: Dict[str, Any], row_num: int) -> bool:
+        """Validate common fields present in both formats."""
         is_valid = True
 
         # Validate investor name
@@ -240,16 +318,21 @@ class ExcelService:
             ))
             is_valid = False
 
-        # Parse and validate distribution amounts
-        tx_nm_amount = self.parse_numeric_value(
-            row_data.get('Distribution \\nTX and NM'), 'Distribution TX and NM', row_num
-        )
-        co_amount = self.parse_numeric_value(
-            row_data.get('Distribution \\nCO'), 'Distribution CO', row_num
-        )
+        return is_valid
 
-        # At least one distribution must be > 0
-        if tx_nm_amount <= 0 and co_amount <= 0:
+    def validate_row_data(self, row_data: Dict[str, Any], row_num: int) -> bool:
+        """Validate row data for v1.3 format."""
+        is_valid = self.validate_base_fields(row_data, row_num)
+
+        # Check for at least one distribution amount > 0
+        has_distribution = False
+        for state, col_name in self.detected_columns['distribution'].items():
+            amount = self.parse_numeric_value(row_data.get(col_name), col_name, row_num)
+            if amount > 0:
+                has_distribution = True
+                break
+
+        if not has_distribution:
             self.errors.append(ExcelValidationError(
                 row_number=row_num,
                 column_name='Distribution Amounts',
@@ -261,8 +344,41 @@ class ExcelService:
 
         return is_valid
 
+    def parse_row(self, row_data: Dict[str, Any], row_num: int) -> Dict[str, Any]:
+        """Parse row data for v1.3 format."""
+        parsed_row = {
+            'investor_name': str(row_data['Investor Name']).strip(),
+            'investor_entity_type': str(row_data['Investor Entity Type']).strip(),
+            'investor_tax_state': str(row_data['Investor Tax State']).strip().upper(),
+            'row_number': row_num
+        }
+
+        # Parse percentage (ignore for processing but store)
+        if 'Percentage' in row_data:
+            parsed_row['percentage'] = self.parse_percentage_value(row_data['Percentage'])
+
+        # Parse distribution amounts by state
+        parsed_row['distributions'] = {}
+        for state, col_name in self.detected_columns['distribution'].items():
+            amount = self.parse_numeric_value(row_data.get(col_name), col_name, row_num)
+            parsed_row['distributions'][state] = amount
+
+        # Parse withholding exemptions by state
+        parsed_row['withholding_exemptions'] = {}
+        for state, col_name in self.detected_columns['withholding_exemption'].items():
+            exemption = self.parse_exemption_value(row_data.get(col_name))
+            parsed_row['withholding_exemptions'][state] = exemption
+
+        # Parse composite exemptions by state
+        parsed_row['composite_exemptions'] = {}
+        for state, col_name in self.detected_columns['composite_exemption'].items():
+            exemption = self.parse_exemption_value(row_data.get(col_name))
+            parsed_row['composite_exemptions'][state] = exemption
+
+        return parsed_row
+
     def parse_excel_file(self, file_path: Path, original_filename: str) -> ExcelParsingResult:
-        """Parse Excel file and validate data."""
+        """Parse Excel file and validate data (v1.3 format)."""
         self.errors = []  # Reset errors
 
         # Validate file size
@@ -284,6 +400,9 @@ class ExcelService:
         try:
             # Read Excel file (first worksheet)
             df = pd.read_excel(file_path, sheet_name=0)
+            # Remove rows where Investor Name is empty
+            df = df.dropna(subset=['Investor Name'])
+            df = df[df['Investor Name'].astype(str).str.strip() != '']
 
             # Check row limit
             if len(df) > 50000:
@@ -312,31 +431,7 @@ class ExcelService:
                 row_data = row.to_dict()
 
                 if self.validate_row_data(row_data, row_num):
-                    # Parse and clean data
-                    parsed_row = {
-                        'investor_name': str(row_data['Investor Name']).strip(),
-                        'investor_entity_type': str(row_data['Investor Entity Type']).strip(),
-                        'investor_tax_state': str(row_data['Investor Tax State']).strip().upper(),
-                        'distribution_tx_nm': self.parse_numeric_value(
-                            row_data['Distribution TX and NM'], 'Distribution TX and NM', row_num
-                        ),
-                        'distribution_co': self.parse_numeric_value(
-                            row_data['Distribution CO'], 'Distribution CO', row_num
-                        ),
-                        'co_composite_exemption': self.parse_exemption_value(
-                            row_data['CO Composite Exemption']
-                        ),
-                        'co_withholding_exemption': self.parse_exemption_value(
-                            row_data['CO Withholding Exemption']
-                        ),
-                        'nm_composite_exemption': self.parse_exemption_value(
-                            row_data['NM Composite Exemption']
-                        ),
-                        'nm_withholding_exemption': self.parse_exemption_value(
-                            row_data['NM Withholding Exemption']
-                        ),
-                        'row_number': row_num
-                    }
+                    parsed_row = self.parse_row(row_data, row_num)
                     valid_data.append(parsed_row)
                     valid_row_count += 1
 

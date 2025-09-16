@@ -24,11 +24,11 @@ async def upload_file(
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
-    Upload and process Excel file.
+    Upload and process Excel file (v1.3 format).
 
     Returns session information and processing status.
     """
-    # Validate file type
+    # Validate file type (Excel only)
     if not file.filename or not file.filename.lower().endswith(('.xlsx', '.xls')):
         raise HTTPException(
             status_code=415,
@@ -54,11 +54,22 @@ async def upload_file(
         # Get or create default user
         user = user_service.get_or_create_default_user()
 
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as temp_file:
+        # Save uploaded file temporarily for processing
+        file_extension = Path(file.filename).suffix
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
             content = await file.read()
             temp_file.write(content)
             temp_file_path = Path(temp_file.name)
+
+        # TODO: Configure S3 storage for production
+        # Save raw uploaded file permanently (local storage for now)
+        upload_dir = Path("data/uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        saved_file_path = upload_dir / f"{user.id}_{file.filename}"
+
+        # Save the raw file content
+        with open(saved_file_path, 'wb') as saved_file:
+            saved_file.write(content)
 
         try:
             # Calculate file hash for idempotency
