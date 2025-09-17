@@ -60,7 +60,7 @@ Implement drag-and-drop Excel file upload system with real-time validation for P
 **Testing (NON-NEGOTIABLE)**:
 - RED-GREEN-Refactor cycle enforced? ✅ Tests written first, must fail before implementation
 - Git commits show tests before implementation? ✅ Will enforce in task execution
-- Order: Contract→Integration→E2E→Unit strictly followed? ✅ Planned in Phase 1
+- Order: Unit→Contract→Integration→E2E tests before implementation? ✅ Planned in Phase 1
 - Real dependencies used? ✅ Actual SQLite database, real file system, Playwright for E2E
 - Integration tests for: new libraries, contract changes, shared schemas? ✅ Upload flow, validation pipeline
 - FORBIDDEN: Implementation before test, skipping RED phase ✅ Will be enforced
@@ -194,7 +194,7 @@ ios/ or android/
 - E2E tests: Playwright scenarios matching quickstart validation steps
 
 **Ordering Strategy**:
-- TDD order: Contract tests → Integration tests → Unit tests → Implementation
+- TDD order: Unit tests → Contract tests → Integration tests → E2E tests → Implementation
 - Dependency order: Database models → Services → API endpoints → Frontend components
 - Mark [P] for parallel execution: Independent model files, separate API endpoints, UI components
 - Critical path: Excel processing pipeline (sequential validation stages)
