@@ -2,16 +2,10 @@
 
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Numeric, Enum as SQLEnum, Index
 from sqlalchemy.orm import relationship
 from ..database.connection import Base
-
-
-class JurisdictionType(Enum):
-    """Jurisdiction type enumeration."""
-    TX_NM = "TX_NM"  # Texas and New Mexico
-    CO = "CO"        # Colorado
+from .enums import USJurisdiction
 
 
 class Distribution(Base):
@@ -25,7 +19,7 @@ class Distribution(Base):
     fund_code = Column(String(50), nullable=False)
     period_quarter = Column(String(2), nullable=False)  # Q1, Q2, Q3, Q4
     period_year = Column(Integer, nullable=False)
-    jurisdiction = Column(SQLEnum(JurisdictionType), nullable=False)
+    jurisdiction = Column(SQLEnum(USJurisdiction), nullable=False)
     amount = Column(Numeric(precision=12, scale=2), nullable=False, default=Decimal('0.00'))
     composite_exemption = Column(Boolean, nullable=False, default=False)
     withholding_exemption = Column(Boolean, nullable=False, default=False)

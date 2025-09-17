@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import pandas as pd
 from ..models.validation_error import ErrorSeverity
+from ..models.enums import USJurisdiction, InvestorEntityType
 
 
 class ExcelValidationError:
@@ -59,27 +60,10 @@ class ExcelService:
     ]
 
     # Valid entity types
-    VALID_ENTITY_TYPES = {
-        "Corporation",
-        "Exempt Organization",
-        "Government Benefit Plan",
-        "Individual",
-        "Joint Tenancy / Tenancy in Common",
-        "LLC_Taxed as Partnership",
-        "LLP",
-        "Limited Partnership",
-        "Partnership",
-        "Trust"
-    }
+    VALID_ENTITY_TYPES = {entity_type.value for entity_type in InvestorEntityType}
 
     # Valid US state codes
-    VALID_STATE_CODES = {
-        "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-        "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-        "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-        "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-        "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC"
-    }
+    VALID_STATE_CODES = {state.value for state in USJurisdiction}
 
     def __init__(self):
         self.errors: List[ExcelValidationError] = []

@@ -30,6 +30,7 @@ FundFlow is an AI-powered automation platform designed to solve manual SALT (Sta
 - ✅ E2E testing: Playwright test suite covering complete upload workflow
 - ✅ Docker configuration with healthy containers
 - ✅ v1.3 format support with flexible column detection
+- ✅ Shared enums for entity types and jurisdictions to ensure data consistency
 - 🎯 **Ready for user validation**: Working end-to-end prototype
 
 ## Scope & Limitations
