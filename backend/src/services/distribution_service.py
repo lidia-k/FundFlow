@@ -3,7 +3,8 @@
 from decimal import Decimal
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from ..models.distribution import Distribution, JurisdictionType
+from ..models.distribution import Distribution
+from ..models.enums import USJurisdiction
 from ..models.investor import Investor
 
 
@@ -26,40 +27,40 @@ class DistributionService:
         Create distribution records for an investor based on parsed Excel row.
 
         Creates one record per jurisdiction if amount > 0.
+        Uses dynamic state-based data from Excel parsing.
         """
         distributions = []
 
-        # Create TX_NM distribution if amount > 0
-        tx_nm_amount = parsed_row['distribution_tx_nm']
-        if tx_nm_amount > 0:
-            tx_nm_distribution = Distribution(
-                investor_id=investor.id,
-                session_id=session_id,
-                fund_code=fund_code,
-                period_quarter=period_quarter,
-                period_year=period_year,
-                jurisdiction=JurisdictionType.TX_NM,
-                amount=tx_nm_amount,
-                composite_exemption=parsed_row['nm_composite_exemption'],
-                withholding_exemption=parsed_row['nm_withholding_exemption']
-            )
-            distributions.append(tx_nm_distribution)
+        # Process each state that has distribution data
+        distributions_data = parsed_row.get('distributions', {})
+        withholding_exemptions = parsed_row.get('withholding_exemptions', {})
+        composite_exemptions = parsed_row.get('composite_exemptions', {})
 
-        # Create CO distribution if amount > 0
-        co_amount = parsed_row['distribution_co']
-        if co_amount > 0:
-            co_distribution = Distribution(
-                investor_id=investor.id,
-                session_id=session_id,
-                fund_code=fund_code,
-                period_quarter=period_quarter,
-                period_year=period_year,
-                jurisdiction=JurisdictionType.CO,
-                amount=co_amount,
-                composite_exemption=parsed_row['co_composite_exemption'],
-                withholding_exemption=parsed_row['co_withholding_exemption']
-            )
-            distributions.append(co_distribution)
+        for state_code, amount in distributions_data.items():
+            if amount > 0:
+                # Convert state code to USJurisdiction enum
+                try:
+                    jurisdiction = USJurisdiction(state_code)
+                except ValueError:
+                    # Skip invalid state codes
+                    continue
+
+                # Get exemption flags for this state
+                withholding_exemption = withholding_exemptions.get(state_code, False)
+                composite_exemption = composite_exemptions.get(state_code, False)
+
+                distribution = Distribution(
+                    investor_id=investor.id,
+                    session_id=session_id,
+                    fund_code=fund_code,
+                    period_quarter=period_quarter,
+                    period_year=period_year,
+                    jurisdiction=jurisdiction,
+                    amount=amount,
+                    composite_exemption=composite_exemption,
+                    withholding_exemption=withholding_exemption
+                )
+                distributions.append(distribution)
 
         # Add to database
         for distribution in distributions:
@@ -120,14 +121,12 @@ class DistributionService:
             fund_code, period_quarter, period_year
         )
 
-        totals = {
-            "TX_NM": Decimal('0.00'),
-            "CO": Decimal('0.00'),
-            "TOTAL": Decimal('0.00')
-        }
+        totals = {"TOTAL": Decimal('0.00')}
 
         for dist in distributions:
             jurisdiction_key = dist.jurisdiction.value
+            if jurisdiction_key not in totals:
+                totals[jurisdiction_key] = Decimal('0.00')
             totals[jurisdiction_key] += dist.amount
             totals["TOTAL"] += dist.amount
 
@@ -144,21 +143,17 @@ class DistributionService:
             fund_code, period_quarter, period_year
         )
 
-        summary = {
-            "TX_NM": {
-                "composite_exemptions": 0,
-                "withholding_exemptions": 0,
-                "total_investors": 0
-            },
-            "CO": {
-                "composite_exemptions": 0,
-                "withholding_exemptions": 0,
-                "total_investors": 0
-            }
-        }
+        summary = {}
 
         for dist in distributions:
             jurisdiction_key = dist.jurisdiction.value
+            if jurisdiction_key not in summary:
+                summary[jurisdiction_key] = {
+                    "composite_exemptions": 0,
+                    "withholding_exemptions": 0,
+                    "total_investors": 0
+                }
+
             summary[jurisdiction_key]["total_investors"] += 1
 
             if dist.composite_exemption:
