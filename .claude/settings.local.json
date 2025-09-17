@@ -26,9 +26,18 @@
       "mcp__serena__think_about_whether_you_are_done",
       "mcp__serena__search_for_pattern",
       "mcp__serena__find_symbol",
-      "mcp__serena__replace_symbol_body"
+      "mcp__serena__replace_symbol_body",
+      "Bash(git stash:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh:*)",
+      "mcp__context7__resolve-library-id",
+      "Bash(/Users/lidia/FundFlow/.specify/scripts/bash/update-agent-context.sh:*)",
+      "mcp__serena__list_memories"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "shadcn"
+  ]
 }

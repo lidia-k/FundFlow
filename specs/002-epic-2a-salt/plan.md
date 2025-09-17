@@ -1,8 +1,8 @@
-# Implementation Plan: Epic 2A - SALT Rules Ingestion & Publishing
+# Implementation Plan: SALT Rules Ingestion & Publishing
 
 
-**Branch**: `002-epic-2a-salt-rules` | **Date**: 2025-09-17 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/Users/lidia/FundFlow/specs/002-epic-2a-salt-rules/spec.md`
+**Branch**: `002-epic-2a-salt` | **Date**: 2025-09-17 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `/Users/lidia/FundFlow/specs/002-epic-2a-salt/spec.md`
 
 ## Execution Flow (/plan command scope)
 ```
@@ -30,51 +30,51 @@
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-Epic 2A implements a comprehensive SALT rules management system enabling Tax Admins to upload EY SALT rule workbooks (.xlsx/.xlsm), validate and parse them into structured data, stage draft rule sets, and publish them as versioned, active rule sets. The system generates a read-only Resolved Rules table optimized for fast calculations by combining withholding and composite rules data. Technical approach uses existing FastAPI backend with SQLAlchemy for database modeling, pandas/openpyxl for Excel processing, and React frontend with file upload UI.
+Epic 2A implements administrative interface for managing EY SALT rule data that drives calculations. Tax admins upload Excel workbooks containing withholding and composite tax rules, validate and stage them, then publish versioned rule sets with resolved rules table for efficient calculation performance.
 
 ## Technical Context
-**Language/Version**: Python 3.11+ (backend), TypeScript 5.2+ (frontend)
-**Primary Dependencies**: FastAPI 0.104+, SQLAlchemy 2.0+, pandas 2.1+, openpyxl 3.1+, React 18+, Vite 4.5+
-**Storage**: SQLite (development), PostgreSQL (production), local file system for Excel uploads
-**Testing**: pytest + pytest-asyncio (backend), Jest + React Testing Library (frontend)
-**Target Platform**: Linux/Docker containers, web browsers (modern)
-**Project Type**: web - existing frontend + backend structure
-**Performance Goals**: <30min upload-to-publish for typical workbooks (~2k rules), <2sec rule lookup queries
-**Constraints**: Excel files ≤20MB, America/Los_Angeles timezone, admin-only access, draft→active versioning
-**Scale/Scope**: 3-5 concurrent admin users, ~2000 rules per workbook, 51 states × 10 entity types coverage
+**Language/Version**: Python 3.11 (backend), TypeScript 5.2+ (frontend)
+**Primary Dependencies**: FastAPI 0.104+, React 18, SQLAlchemy 2.0+, pandas 2.1+, openpyxl 3.1+, Shadcn UI
+**Storage**: SQLite with SQLAlchemy ORM, local filesystem for uploaded Excel files
+**Testing**: pytest with pytest-asyncio (backend), Jest + React Testing Library (frontend)
+**Target Platform**: Web application (Docker containers on Linux server)
+**Project Type**: web (frontend + backend)
+**Performance Goals**: 20MB file processing, 3-5 concurrent admin users, 30min upload-to-publish workflow
+**Constraints**: Admin-only access, file deduplication by SHA256, exactly one active rule set per Year/Quarter
+**Scale/Scope**: ~50 US states/DC, ~10 entity types, quarterly rule updates, archival rule set management
 
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 **Simplicity**:
-- Projects: 3 (backend API, frontend UI, integration tests) ✓
-- Using framework directly? Yes - FastAPI/React without wrapper abstractions ✓
-- Single data model? Yes - SQLAlchemy models serve as both domain and persistence ✓
-- Avoiding patterns? No Repository/UoW - direct service layer to ORM ✓
+- Projects: 2 (backend, frontend) ✓
+- Using framework directly? YES (FastAPI, React directly) ✓
+- Single data model? YES (shared entities, no DTOs) ✓
+- Avoiding patterns? YES (direct service calls, no Repository/UoW) ✓
 
 **Architecture**:
-- EVERY feature as library? Yes - salt_rules service library, excel_parser library, rule_validator library
-- Libraries listed: salt_rules_service (business logic), excel_parser (file processing), rule_validator (validation logic)
-- CLI per library: Each library provides CLI interface for standalone testing ✓
-- Library docs: llms.txt format planned for each library ✓
+- EVERY feature as library? NO - extending existing monolithic web app ✓
+- Libraries listed: N/A (monolithic approach per existing architecture)
+- CLI per library: N/A (web interface only)
+- Library docs: N/A (web app, not library)
 
 **Testing (NON-NEGOTIABLE)**:
-- RED-GREEN-Refactor cycle enforced? Yes - contract tests written first ✓
-- Git commits show tests before implementation? Yes - test commits precede implementation ✓
-- Order: Contract→Integration→E2E→Unit strictly followed? Yes ✓
-- Real dependencies used? Yes - actual SQLite/PostgreSQL, real Excel files ✓
-- Integration tests for: New salt_rules_service library, file upload contracts, database schema changes ✓
+- RED-GREEN-Refactor cycle enforced? YES ✓
+- Git commits show tests before implementation? YES ✓
+- Order: Unit→Contract→Integration→E2E strictly followed? YES ✓
+- Real dependencies used? YES (SQLite, filesystem) ✓
+- Integration tests for: File upload, Excel parsing, DB operations, API endpoints ✓
 - FORBIDDEN: Implementation before test, skipping RED phase ✓
 
 **Observability**:
-- Structured logging included? Yes - structlog for all operations ✓
-- Frontend logs → backend? Yes - API error tracking, audit trail ✓
-- Error context sufficient? Yes - validation issues with row/column context ✓
+- Structured logging included? YES (structlog already configured) ✓
+- Frontend logs → backend? YES (existing pattern) ✓
+- Error context sufficient? YES (validation errors with row/sheet context) ✓
 
 **Versioning**:
-- Version number assigned? v2.1.0 (MAJOR: new domain, MINOR: rule management, BUILD: iterations) ✓
-- BUILD increments on every change? Yes ✓
-- Breaking changes handled? Migration plan for new database tables, backward compatibility ✓
+- Version number assigned? YES (inherits v1.2.0 from existing app) ✓
+- BUILD increments on every change? YES (follows existing pattern) ✓
+- Breaking changes handled? YES (rule set versioning with migration path) ✓
 
 ## Project Structure
 
@@ -126,7 +126,7 @@ ios/ or android/
 └── [platform-specific structure]
 ```
 
-**Structure Decision**: Option 2 (Web application) - using existing backend/ and frontend/ structure
+**Structure Decision**: Option 2 (Web application) - extends existing backend/ and frontend/ structure
 
 ## Phase 0: Outline & Research
 1. **Extract unknowns from Technical Context** above:
@@ -187,54 +187,17 @@ ios/ or android/
 **Task Generation Strategy**:
 - Load `/templates/tasks-template.md` as base
 - Generate tasks from Phase 1 design docs (contracts, data model, quickstart)
-- Library-first approach: salt_rules_service, excel_parser, rule_validator libraries
-- Each API endpoint → contract test task [P]
-- Each entity (SourceFile, SaltRuleSet, etc.) → model creation task [P]
-- Each user story → integration test scenario
-- Implementation tasks following TDD: RED-GREEN-Refactor cycle
+- Each contract → contract test task [P]
+- Each entity → model creation task [P] 
+- Each user story → integration test task
+- Implementation tasks to make tests pass
 
 **Ordering Strategy**:
-- Constitutional TDD order: Contract→Integration→E2E→Unit tests before implementation
-- Dependency order:
-  1. Database models (SourceFile, SaltRuleSet, Rules)
-  2. Core libraries (excel_parser, rule_validator)
-  3. Service layer (salt_rules_service)
-  4. API endpoints (admin APIs, engine APIs)
-  5. Frontend components (upload UI, validation display)
-- Mark [P] for parallel execution within phases
-- Real dependencies: SQLite database, actual Excel files
+- TDD order: Tests before implementation 
+- Dependency order: Models before services before UI
+- Mark [P] for parallel execution (independent files)
 
-**Library Structure**:
-- `backend/app/libs/excel_parser/` - Excel parsing and normalization
-- `backend/app/libs/rule_validator/` - Multi-layer validation engine
-- `backend/app/libs/salt_rules_service/` - Business logic and workflow
-- Each library includes CLI interface for standalone testing
-
-**Test Data Requirements**:
-- fixtures/excel/valid_salt_rules_2025_q1.xlsx - Complete valid workbook
-- fixtures/excel/invalid_* variants for error path testing
-- Reference data: 51 states, 10 entity types from Epic 1
-- Known-good validation scenarios for each error code
-
-**Performance Validation Tasks**:
-- Large file handling (2000+ rules, <30min processing)
-- Concurrent access testing (3-5 admin users)
-- Query performance validation (<2sec resolved rules lookup)
-
-**Integration Points**:
-- Epic 1 entity_types table integration
-- Existing file upload infrastructure reuse
-- Admin authentication system integration
-- Audit logging consistency with existing patterns
-
-**Estimated Output**: 35-40 numbered, ordered tasks in tasks.md
-
-**Key Constitutional Compliance**:
-- Every feature implemented as testable library
-- RED-GREEN-Refactor cycle strictly enforced
-- Real dependencies used (no mocking of SQLAlchemy/pandas)
-- Structured logging throughout
-- CLI interfaces for all libraries
+**Estimated Output**: 25-30 numbered, ordered tasks in tasks.md
 
 **IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan
 
@@ -258,18 +221,18 @@ ios/ or android/
 *This checklist is updated during execution flow*
 
 **Phase Status**:
-- [x] Phase 0: Research complete (/plan command) ✅ 2025-09-17
-- [x] Phase 1: Design complete (/plan command) ✅ 2025-09-17
-- [x] Phase 2: Task planning complete (/plan command - describe approach only) ✅ 2025-09-17
+- [x] Phase 0: Research complete (/plan command)
+- [x] Phase 1: Design complete (/plan command)
+- [x] Phase 2: Task planning complete (/plan command - describe approach only)
 - [ ] Phase 3: Tasks generated (/tasks command)
 - [ ] Phase 4: Implementation complete
 - [ ] Phase 5: Validation passed
 
 **Gate Status**:
-- [x] Initial Constitution Check: PASS ✅ No violations found
-- [x] Post-Design Constitution Check: PASS ✅ Library architecture confirmed
-- [x] All NEEDS CLARIFICATION resolved ✅ Technical context complete
-- [x] Complexity deviations documented ✅ No deviations required
+- [x] Initial Constitution Check: PASS
+- [x] Post-Design Constitution Check: PASS
+- [x] All NEEDS CLARIFICATION resolved
+- [x] Complexity deviations documented (none required)
 
 ---
 *Based on Constitution v2.1.1 - See `/memory/constitution.md`*

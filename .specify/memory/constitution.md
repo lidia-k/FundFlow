@@ -1,50 +1,52 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# FundFlow Prototype Constitution (v1.0)
+
+**Ratified:** 2025-09-17 | **Last Amended:** 2025-09-17  
+
+---
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### Simplicity First
+- Apply **YAGNI**: build only what’s needed.  
+- Extend existing projects, avoid over-engineering.  
+- Validate user workflows before optimizing performance.  
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### Test-First (Non-Negotiable)
+- **Order:** Unit → Contract → Integration → E2E → Implementation.  
+- Write tests first (Red-Green-Refactor).  
+- All merges require passing tests and proof of the TDD cycle.  
+- Spikes allowed only if discarded or covered by tests before merge.  
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### Integration Testing Focus
+- Validate API contracts, DB ops, component interactions, file processing.  
+- Use real dependencies (SQLite, filesystem); in-memory SQLite acceptable fo
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### Observability
+- JSON-structured logging required.  
+- Frontend logs flow to backend.  
+- Include error context sufficient for debugging.  
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+---
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Development Standards
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+| Area          | Standard |
+|---------------|----------|
+| **Backend**   | Python 3.11, FastAPI, SQLAlchemy, SQLite |
+| **Frontend**  | React 18, TypeScript, Tailwind, Shadcn UI |
+| **Testing**   | pytest, Jest, Playwright |
+| **Quality**   | black, isort, mypy, ruff; ESLint, Prettier |
+| **Perf (Proto)** | ~3–5 concurrent users, ~10MB Excel files |
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+---
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## Quality Gates
+- All tests pass before merge.  
+- Constitutional compliance check in review.  
+- Simplicity > complexity; deviations require a short written rationale.  
+
+---
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
-
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
-
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+- Constitution overrides all other practices.  
+- Amendments require brief rationale + async approval.  

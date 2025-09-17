@@ -1,0 +1,789 @@
+openapi: 3.0.3
+info:
+  title: SALT Rules Ingestion & Publishing API
+  description: |
+    Administrative interface for uploading, validating, staging, and publishing EY SALT rule workbooks.
+    Supports Excel file processing, multi-layer validation, and versioned rule set management.
+  version: 1.2.0
+  contact:
+    name: FundFlow Development Team
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+  - url: https://api.fundflow.com/api
+    description: Production server
+
+security:
+  - AdminAuth: []
+
+paths:
+  /salt-rules/upload:
+    post:
+      summary: Upload SALT rule workbook
+      description: |
+        Upload an Excel workbook (.xlsx/.xlsm) containing EY SALT rules.
+        Creates a draft rule set and initiates validation pipeline.
+      operationId: uploadSaltRules
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - year
+                - quarter
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel workbook (.xlsx/.xlsm)
+                year:
+                  type: integer
+                  minimum: 2020
+                  maximum: 2030
+                  example: 2025
+                quarter:
+                  type: string
+                  enum: [Q1, Q2, Q3, Q4]
+                  example: Q1
+                description:
+                  type: string
+                  maxLength: 500
+                  example: "Updated withholding rates for 2025 Q1"
+      responses:
+        '201':
+          description: Upload successful, validation initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Invalid file or request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate file (same SHA256) for year/quarter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictResponse'
+        '413':
+          description: File size exceeds 20MB limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /salt-rules/{ruleSetId}/validation:
+    get:
+      summary: Get validation results
+      description: Retrieve validation results for uploaded rule set
+      operationId: getValidationResults
+      parameters:
+        - $ref: '#/components/parameters/RuleSetId'
+        - name: format
+          in: query
+          description: Response format
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        '200':
+          description: Validation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+            text/csv:
+              schema:
+                type: string
+                example: |
+                  sheet_name,row_number,column_name,error_code,severity,message,field_value
+                  Withholding,15,State,INVALID_STATE,error,Invalid state code,ZZ
+        '404':
+          description: Rule set not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /salt-rules/{ruleSetId}/preview:
+    get:
+      summary: Preview staged rules with diff comparison
+      description: |
+        Shows comparison between draft rule set and currently active rule set,
+        highlighting added, changed, and removed rules at field level.
+      operationId: previewRuleSet
+      parameters:
+        - $ref: '#/components/parameters/RuleSetId'
+        - name: compareWith
+          in: query
+          description: Rule set ID to compare against (defaults to current active)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Rule set preview with diff comparison
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewResponse'
+        '404':
+          description: Rule set not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /salt-rules/{ruleSetId}/publish:
+    post:
+      summary: Publish rule set
+      description: |
+        Activates a draft rule set, making it available for calculations.
+        Archives any existing active rule set for the same year/quarter.
+      operationId: publishRuleSet
+      parameters:
+        - $ref: '#/components/parameters/RuleSetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                effectiveDate:
+                  type: string
+                  format: date
+                  description: When rules become effective (defaults to today)
+                  example: "2025-01-01"
+                confirmArchive:
+                  type: boolean
+                  default: false
+                  description: Acknowledge archiving existing active rule set
+      responses:
+        '200':
+          description: Rule set published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+        '400':
+          description: Cannot publish due to validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Active rule set exists, confirmation required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictResponse'
+
+  /salt-rules:
+    get:
+      summary: List rule sets
+      description: Retrieve paginated list of rule sets with filtering
+      operationId: listRuleSets
+      parameters:
+        - name: status
+          in: query
+          description: Filter by rule set status
+          schema:
+            $ref: '#/components/schemas/RuleSetStatus'
+        - name: year
+          in: query
+          description: Filter by tax year
+          schema:
+            type: integer
+        - name: quarter
+          in: query
+          description: Filter by quarter
+          schema:
+            $ref: '#/components/schemas/Quarter'
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of rule sets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleSetListResponse'
+
+  /salt-rules/{ruleSetId}:
+    get:
+      summary: Get rule set details
+      description: Retrieve detailed information about a specific rule set
+      operationId: getRuleSet
+      parameters:
+        - $ref: '#/components/parameters/RuleSetId'
+      responses:
+        '200':
+          description: Rule set details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleSetDetail'
+        '404':
+          description: Rule set not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete draft rule set
+      description: Delete a draft rule set and associated data (cannot delete active/archived)
+      operationId: deleteRuleSet
+      parameters:
+        - $ref: '#/components/parameters/RuleSetId'
+      responses:
+        '204':
+          description: Rule set deleted successfully
+        '400':
+          description: Cannot delete non-draft rule set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Rule set not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    AdminAuth:
+      type: http
+      scheme: bearer
+      description: Admin authentication token
+
+  parameters:
+    RuleSetId:
+      name: ruleSetId
+      in: path
+      required: true
+      description: Unique identifier for rule set
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    UploadResponse:
+      type: object
+      required:
+        - ruleSetId
+        - status
+        - uploadedFile
+      properties:
+        ruleSetId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          $ref: '#/components/schemas/RuleSetStatus'
+        uploadedFile:
+          $ref: '#/components/schemas/SourceFile'
+        validationStarted:
+          type: boolean
+          example: true
+
+    ValidationResponse:
+      type: object
+      required:
+        - ruleSetId
+        - status
+        - summary
+        - issues
+      properties:
+        ruleSetId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [validating, completed, failed]
+        summary:
+          $ref: '#/components/schemas/ValidationSummary'
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+        csvDownloadUrl:
+          type: string
+          format: uri
+          description: URL to download validation results as CSV
+
+    ValidationSummary:
+      type: object
+      required:
+        - totalIssues
+        - errorCount
+        - warningCount
+        - rulesProcessed
+      properties:
+        totalIssues:
+          type: integer
+          example: 5
+        errorCount:
+          type: integer
+          example: 2
+        warningCount:
+          type: integer
+          example: 3
+        rulesProcessed:
+          type: object
+          properties:
+            withholding:
+              type: integer
+              example: 51
+            composite:
+              type: integer
+              example: 51
+
+    ValidationIssue:
+      type: object
+      required:
+        - sheetName
+        - rowNumber
+        - errorCode
+        - severity
+        - message
+      properties:
+        sheetName:
+          type: string
+          example: "Withholding"
+        rowNumber:
+          type: integer
+          example: 15
+        columnName:
+          type: string
+          example: "State"
+        errorCode:
+          type: string
+          example: "INVALID_STATE"
+        severity:
+          $ref: '#/components/schemas/IssueSeverity'
+        message:
+          type: string
+          example: "Invalid state code 'ZZ' - must be valid US state"
+        fieldValue:
+          type: string
+          example: "ZZ"
+
+    PreviewResponse:
+      type: object
+      required:
+        - ruleSetId
+        - comparison
+        - summary
+      properties:
+        ruleSetId:
+          type: string
+          format: uuid
+        comparison:
+          $ref: '#/components/schemas/RuleComparison'
+        summary:
+          $ref: '#/components/schemas/ComparisonSummary'
+
+    RuleComparison:
+      type: object
+      properties:
+        added:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleChange'
+        modified:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleChange'
+        removed:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleChange'
+
+    RuleChange:
+      type: object
+      required:
+        - ruleType
+        - state
+        - entityType
+      properties:
+        ruleType:
+          type: string
+          enum: [withholding, composite]
+        state:
+          type: string
+          example: "CA"
+        entityType:
+          $ref: '#/components/schemas/InvestorEntityType'
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldChange'
+
+    FieldChange:
+      type: object
+      required:
+        - field
+        - oldValue
+        - newValue
+      properties:
+        field:
+          type: string
+          example: "taxRate"
+        oldValue:
+          type: string
+          example: "0.0525"
+        newValue:
+          type: string
+          example: "0.0575"
+
+    ComparisonSummary:
+      type: object
+      properties:
+        rulesAdded:
+          type: integer
+          example: 5
+        rulesModified:
+          type: integer
+          example: 12
+        rulesRemoved:
+          type: integer
+          example: 0
+        fieldsChanged:
+          type: integer
+          example: 18
+
+    PublishResponse:
+      type: object
+      required:
+        - ruleSetId
+        - status
+        - effectiveDate
+      properties:
+        ruleSetId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/RuleSetStatus'
+        effectiveDate:
+          type: string
+          format: date
+        archivedRuleSet:
+          type: string
+          format: uuid
+          description: ID of previously active rule set that was archived
+        resolvedRulesGenerated:
+          type: integer
+          description: Number of resolved rules generated
+
+    RuleSetListResponse:
+      type: object
+      required:
+        - items
+        - pagination
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleSetSummary'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    RuleSetSummary:
+      type: object
+      required:
+        - id
+        - year
+        - quarter
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        year:
+          type: integer
+        quarter:
+          $ref: '#/components/schemas/Quarter'
+        version:
+          type: string
+          example: "1.0.0"
+        status:
+          $ref: '#/components/schemas/RuleSetStatus'
+        effectiveDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        description:
+          type: string
+        ruleCount:
+          type: object
+          properties:
+            withholding:
+              type: integer
+            composite:
+              type: integer
+
+    RuleSetDetail:
+      allOf:
+        - $ref: '#/components/schemas/RuleSetSummary'
+        - type: object
+          properties:
+            sourceFile:
+              $ref: '#/components/schemas/SourceFile'
+            validationSummary:
+              $ref: '#/components/schemas/ValidationSummary'
+            rules:
+              type: object
+              properties:
+                withholding:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WithholdingRule'
+                composite:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CompositeRule'
+
+    SourceFile:
+      type: object
+      required:
+        - id
+        - filename
+        - fileSize
+        - contentType
+        - uploadTimestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+          example: "EY_SALT_Rules_2025Q1.xlsx"
+        filepath:
+          type: string
+          description: Secure storage path (admin only)
+        fileSize:
+          type: integer
+          example: 1048576
+        contentType:
+          type: string
+          example: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        sha256Hash:
+          type: string
+          example: "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        uploadTimestamp:
+          type: string
+          format: date-time
+        uploadedBy:
+          type: string
+
+    WithholdingRule:
+      type: object
+      required:
+        - id
+        - stateCode
+        - entityType
+        - taxRate
+        - incomeThreshold
+        - taxThreshold
+      properties:
+        id:
+          type: string
+          format: uuid
+        stateCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: "CA"
+        entityType:
+          $ref: '#/components/schemas/InvestorEntityType'
+        taxRate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          example: 0.0525
+        incomeThreshold:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 1000.00
+        taxThreshold:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 100.00
+
+    CompositeRule:
+      type: object
+      required:
+        - id
+        - stateCode
+        - entityType
+        - taxRate
+        - incomeThreshold
+        - mandatoryFiling
+      properties:
+        id:
+          type: string
+          format: uuid
+        stateCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: "NY"
+        entityType:
+          $ref: '#/components/schemas/InvestorEntityType'
+        taxRate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          example: 0.0625
+        incomeThreshold:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 1000.00
+        mandatoryFiling:
+          type: boolean
+          example: true
+        minTaxAmount:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 25.00
+        maxTaxAmount:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 10000.00
+
+    Pagination:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          example: "File format validation failed"
+        details:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    ConflictResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "DUPLICATE_FILE"
+        message:
+          type: string
+          example: "File with same content already uploaded for 2025 Q1"
+        existingRuleSetId:
+          type: string
+          format: uuid
+        duplicateDetection:
+          type: object
+          properties:
+            sha256Hash:
+              type: string
+            uploadedAt:
+              type: string
+              format: date-time
+
+    # Enums
+    RuleSetStatus:
+      type: string
+      enum: [draft, active, archived]
+
+    Quarter:
+      type: string
+      enum: [Q1, Q2, Q3, Q4]
+
+    IssueSeverity:
+      type: string
+      enum: [error, warning]
+
+    InvestorEntityType:
+      type: string
+      enum:
+        - individual
+        - trust
+        - estate
+        - partnership
+        - corporation
+        - llc
+        - pension_fund
+        - endowment
+        - foundation
+        - insurance_company
+        - bank
+        - government
+        - foreign_government
+        - sovereign_wealth_fund
+        - other
