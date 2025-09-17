@@ -97,23 +97,28 @@ FundFlow/
 ## API Reference
 ### Core Endpoints
 - `POST /api/upload` - Upload Excel file for processing
-- `GET /api/calculations/{id}` - Get calculation status and results
-- `GET /api/calculations/{id}/download` - Download results as Excel
+- `GET /api/results/{session_id}` - Get processing results and status
+- `GET /api/results/{session_id}/preview` - Preview processing results
+- `GET /api/results/{session_id}/download` - Download results as Excel
+- `GET /api/results/{session_id}/download-errors` - Download validation errors
 - `GET /api/template` - Download Excel template
 - `GET /api/health` - Health check
+- `GET /api/health/simple` - Simple health check
 
 ### Data Models
-- **UploadFile**: Excel file metadata and validation
-- **Calculation**: SALT calculation job with status tracking
-- **Portfolio**: Portfolio company data structure
-- **SALTResult**: Calculated tax allocations and results
+- **UserSession**: Upload session tracking with status and progress
+- **Investor**: Persistent investor entities with name, entity type, and tax state
+- **Distribution**: Quarterly distribution amounts by jurisdiction
+- **ValidationError**: File validation errors with severity levels
+- **UploadStatus**: Enum for tracking upload/processing stages
 
 ## Database Schema
 ### Key Tables
-- `calculations` - Calculation jobs (id, status, created_at, file_path, results_path)
-- `portfolios` - Portfolio company data (id, name, state, calculation_id)
-- `salt_rules` - Pre-stored EY SALT calculation rules (state, rule_type, rate)
-- `results` - Calculated results (id, portfolio_id, state, allocation, tax_amount)
+- `user_sessions` - Upload sessions (session_id, user_id, status, progress, file info)
+- `users` - User accounts (id, email, name, created_at)
+- `investors` - Persistent investor entities (id, name, entity_type, tax_state)
+- `distributions` - Distribution data (id, investor_id, session_id, jurisdiction, amount, exemptions)
+- `validation_errors` - Processing errors (id, session_id, row_number, severity, message)
 
 ## Coding Standards & Conventions
 ### Python (Backend)
@@ -222,9 +227,9 @@ make lint-fix        # Auto-fix linting issues
 
 ## Common Development Tasks
 ### Adding New API Endpoint
-1. Create route in `backend/app/api/`
-2. Add Pydantic models in `backend/app/models/`
-3. Implement service logic in `backend/app/services/`
+1. Create route in `backend/src/api/`
+2. Add Pydantic models in `backend/src/models/`
+3. Implement service logic in `backend/src/services/`
 4. Add tests in `backend/tests/`
 5. Update API client in `frontend/src/api/`
 
@@ -236,7 +241,7 @@ make lint-fix        # Auto-fix linting issues
 5. Export from component index file
 
 ### Database Changes
-1. Update models in `backend/app/models/`
+1. Update models in `backend/src/models/`
 2. Create migration script if needed
 3. Update seed data in development
 4. Test with sample data
@@ -273,11 +278,10 @@ make logs                     # All application logs
 
 ## MCP Context 7 
 Always use context7 when I need code generation, setup or configuration steps, or
-library/API documentation. This means you should automatically use the Context7 MCP
-tools to resolve library id and get library docs without me having to explicitly ask.
+library/API documentation. This means you should automatically use the Context7 MCP tools to resolve library id and get library docs without me having to explicitly ask.
 
-## Key Rules
-1. Always use uv for package management operations
-2. Never use pip install directly - use uv add instead
-3. Keep .venv in the project root directory
-4. Ensure virtual environment is activated before running Python code
+## IMPORTANT Key Rules
+- When unsure about implementation details, always ask the developer first.
+- Never modify test code unless explicitly instructed by the user.
+- Never change API names or parameters unless explicitly instructed by the user.
+- Never migrate data on your own initiative.
