@@ -285,3 +285,7 @@ library/API documentation. This means you should automatically use the Context7 
 - Never modify test code unless explicitly instructed by the user.
 - Never change API names or parameters unless explicitly instructed by the user.
 - Never migrate data on your own initiative.
+- Always use uv for package management operations
+- Never use pip install directly - use uv add instead
+- Keep .venv in the project root directory
+- Ensure virtual environment is activated before running Python code

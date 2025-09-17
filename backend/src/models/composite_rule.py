@@ -1,0 +1,72 @@
+"""CompositeRule model for composite tax rates and filing requirements."""
+
+import uuid
+from datetime import datetime
+from decimal import Decimal
+from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, CheckConstraint, UniqueConstraint, Enum as SQLEnum, DECIMAL
+from sqlalchemy.orm import relationship
+from ..database.connection import Base
+from .enums import USJurisdiction
+
+
+class CompositeRule(Base):
+    """CompositeRule entity for composite tax rates and filing requirements by state and entity type."""
+
+    __tablename__ = "composite_rules"
+
+    # Primary key
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Foreign key
+    rule_set_id = Column(String(36), ForeignKey("salt_rule_sets.id"), nullable=False)
+
+    # Rule identification
+    state_code = Column(SQLEnum(USJurisdiction), nullable=False)
+    entity_type = Column(String(50), nullable=False)
+
+    # Tax calculations
+    tax_rate = Column(DECIMAL(5, 4), nullable=False)
+    income_threshold = Column(DECIMAL(12, 2), nullable=False)
+    mandatory_filing = Column(Boolean, nullable=False)
+
+    # Additional thresholds
+    min_tax_amount = Column(DECIMAL(12, 2), nullable=True)
+    max_tax_amount = Column(DECIMAL(12, 2), nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    rule_set = relationship("SaltRuleSet", back_populates="composite_rules")
+
+    # Table constraints
+    __table_args__ = (
+        CheckConstraint(
+            "tax_rate >= 0.0000 AND tax_rate <= 1.0000",
+            name="ck_composite_rule_tax_rate_range"
+        ),
+        CheckConstraint(
+            "income_threshold >= 0.00",
+            name="ck_composite_rule_income_threshold_positive"
+        ),
+        CheckConstraint(
+            "min_tax_amount IS NULL OR min_tax_amount >= 0.00",
+            name="ck_composite_rule_min_tax_positive"
+        ),
+        CheckConstraint(
+            "max_tax_amount IS NULL OR max_tax_amount >= 0.00",
+            name="ck_composite_rule_max_tax_positive"
+        ),
+        CheckConstraint(
+            "min_tax_amount IS NULL OR max_tax_amount IS NULL OR max_tax_amount >= min_tax_amount",
+            name="ck_composite_rule_max_gte_min_tax"
+        ),
+        # Unique constraint: one rule per rule_set/state/entity combination
+        UniqueConstraint(
+            "rule_set_id", "state_code", "entity_type",
+            name="uq_composite_rule_set_state_entity"
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<CompositeRule(id='{self.id}', state='{self.state_code.value}', entity_type='{self.entity_type}', rate={self.tax_rate})>"

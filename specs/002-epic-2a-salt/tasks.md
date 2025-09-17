@@ -28,60 +28,60 @@
 - [ ] T003 [P] Configure linting (ruff) and formatting tools for backend/
 - [ ] T004 [P] Set up file storage directory structure for uploaded Excel files
 
-## Phase 3.2: Unit Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
+## Phase 3.2: Unit Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3 ✅
 **CRITICAL: Unit tests MUST be written and MUST FAIL before ANY implementation**
-- [ ] T005 [P] Unit test SourceFile model validation in backend/tests/unit/test_source_file.py
-- [ ] T006 [P] Unit test SaltRuleSet model validation in backend/tests/unit/test_salt_rule_set.py
-- [ ] T007 [P] Unit test WithholdingRule model validation in backend/tests/unit/test_withholding_rule.py
-- [ ] T008 [P] Unit test CompositeRule model validation in backend/tests/unit/test_composite_rule.py
-- [ ] T009 [P] Unit test ValidationIssue model validation in backend/tests/unit/test_validation_issue.py
-- [ ] T010 [P] Unit test StateEntityTaxRuleResolved model in backend/tests/unit/test_resolved_rule.py
-- [ ] T011 [P] Unit test Excel processing service logic in backend/tests/unit/test_excel_processor.py
-- [ ] T012 [P] Unit test validation pipeline service in backend/tests/unit/test_validation_service.py
-- [ ] T013 [P] Unit test file service SHA256 hashing in backend/tests/unit/test_file_service.py
-- [ ] T014 [P] Unit test rule comparison service logic in backend/tests/unit/test_comparison_service.py
+- [x] T005 [P] Unit test SourceFile model validation in backend/tests/unit/test_source_file.py
+- [x] T006 [P] Unit test SaltRuleSet model validation in backend/tests/unit/test_salt_rule_set.py
+- [x] T007 [P] Unit test WithholdingRule model validation in backend/tests/unit/test_withholding_rule.py
+- [x] T008 [P] Unit test CompositeRule model validation in backend/tests/unit/test_composite_rule.py
+- [x] T009 [P] Unit test ValidationIssue model validation in backend/tests/unit/test_validation_issue.py
+- [x] T010 [P] Unit test StateEntityTaxRuleResolved model in backend/tests/unit/test_resolved_rule.py
+- [x] T011 [P] Unit test Excel processing service logic in backend/tests/unit/test_excel_processor.py
+- [x] T012 [P] Unit test validation pipeline service in backend/tests/unit/test_validation_service.py
+- [x] T013 [P] Unit test file service SHA256 hashing in backend/tests/unit/test_file_service.py
+- [x] T014 [P] Unit test rule comparison service logic in backend/tests/unit/test_comparison_service.py
 
-## Phase 3.3: Contract Tests ⚠️ MUST COMPLETE BEFORE 3.4
+## Phase 3.3: Contract Tests ⚠️ MUST COMPLETE BEFORE 3.4 ✅
 **CRITICAL: Contract tests MUST be written and MUST FAIL before implementation**
-- [ ] T015 [P] Contract test POST /api/salt-rules/upload in backend/tests/contract/test_upload_endpoint.py
-- [ ] T016 [P] Contract test GET /api/salt-rules/{ruleSetId}/validation in backend/tests/contract/test_validation_endpoint.py
-- [ ] T017 [P] Contract test GET /api/salt-rules/{ruleSetId}/preview in backend/tests/contract/test_preview_endpoint.py
-- [ ] T018 [P] Contract test POST /api/salt-rules/{ruleSetId}/publish in backend/tests/contract/test_publish_endpoint.py
-- [ ] T019 [P] Contract test GET /api/salt-rules in backend/tests/contract/test_list_endpoint.py
-- [ ] T020 [P] Contract test GET /api/salt-rules/{ruleSetId} in backend/tests/contract/test_detail_endpoint.py
+- [x] T015 [P] Contract test POST /api/salt-rules/upload in backend/tests/contract/test_upload_endpoint.py
+- [x] T016 [P] Contract test GET /api/salt-rules/{ruleSetId}/validation in backend/tests/contract/test_validation_endpoint.py
+- [x] T017 [P] Contract test GET /api/salt-rules/{ruleSetId}/preview in backend/tests/contract/test_preview_endpoint.py
+- [x] T018 [P] Contract test POST /api/salt-rules/{ruleSetId}/publish in backend/tests/contract/test_publish_endpoint.py
+- [x] T019 [P] Contract test GET /api/salt-rules in backend/tests/contract/test_list_endpoint.py
+- [x] T020 [P] Contract test GET /api/salt-rules/{ruleSetId} in backend/tests/contract/test_detail_endpoint.py
 
-## Phase 3.4: Integration Tests ⚠️ MUST COMPLETE BEFORE 3.5
+## Phase 3.4: Integration Tests ⚠️ MUST COMPLETE BEFORE 3.5 ✅
 **CRITICAL: Integration tests MUST be written and MUST FAIL before implementation**
-- [ ] T021 [P] Integration test complete upload → validate → preview → publish workflow in backend/tests/integration/test_complete_workflow.py
-- [ ] T022 [P] Integration test error handling with invalid Excel files in backend/tests/integration/test_error_scenarios.py
-- [ ] T023 [P] Integration test duplicate file detection in backend/tests/integration/test_duplicate_detection.py
+- [x] T021 [P] Integration test complete upload → validate → preview → publish workflow in backend/tests/integration/test_complete_workflow.py
+- [x] T022 [P] Integration test error handling with invalid Excel files in backend/tests/integration/test_error_scenarios.py
+- [x] T023 [P] Integration test duplicate file detection in backend/tests/integration/test_duplicate_detection.py
 
-## Phase 3.5: E2E Tests ⚠️ MUST COMPLETE BEFORE 3.6
+## Phase 3.5: E2E Tests ⚠️ MUST COMPLETE BEFORE 3.6 ✅
 **CRITICAL: E2E tests MUST be written and MUST FAIL before implementation**
-- [ ] T024 [P] E2E test performance with 20MB files in backend/tests/e2e/test_performance.py
+- [x] T024 [P] E2E test performance with 20MB files in backend/tests/e2e/test_performance.py
 
 ## Phase 3.6: Core Implementation (ONLY after ALL tests are failing)
-- [ ] T025 [P] SourceFile model in backend/src/models/source_file.py
-- [ ] T026 [P] SaltRuleSet model in backend/src/models/salt_rule_set.py
-- [ ] T027 [P] WithholdingRule model in backend/src/models/withholding_rule.py
-- [ ] T028 [P] CompositeRule model in backend/src/models/composite_rule.py
-- [ ] T029 [P] ValidationIssue model in backend/src/models/validation_issue.py
-- [ ] T030 [P] StateEntityTaxRuleResolved model in backend/src/models/resolved_rule.py
-- [ ] T031 [P] Excel processing service with pandas/openpyxl in backend/src/services/excel_processor.py
-- [ ] T032 [P] Validation pipeline service in backend/src/services/validation_service.py
-- [ ] T033 [P] File storage service with SHA256 hashing in backend/src/services/file_service.py
-- [ ] T034 [P] Rule comparison service for diff preview in backend/src/services/comparison_service.py
-- [ ] T035 POST /api/salt-rules/upload endpoint implementation
-- [ ] T036 GET /api/salt-rules/{ruleSetId}/validation endpoint implementation
-- [ ] T037 GET /api/salt-rules/{ruleSetId}/preview endpoint implementation
-- [ ] T038 POST /api/salt-rules/{ruleSetId}/publish endpoint implementation
-- [ ] T039 GET /api/salt-rules endpoint implementation
-- [ ] T040 GET /api/salt-rules/{ruleSetId} endpoint implementation
+- [x] T025 [P] SourceFile model in backend/src/models/source_file.py
+- [x] T026 [P] SaltRuleSet model in backend/src/models/salt_rule_set.py
+- [x] T027 [P] WithholdingRule model in backend/src/models/withholding_rule.py
+- [x] T028 [P] CompositeRule model in backend/src/models/composite_rule.py
+- [x] T029 [P] ValidationIssue model in backend/src/models/validation_issue.py
+- [x] T030 [P] StateEntityTaxRuleResolved model in backend/src/models/resolved_rule.py
+- [x] T031 [P] Excel processing service with pandas/openpyxl in backend/src/services/excel_processor.py
+- [x] T032 [P] Validation pipeline service in backend/src/services/validation_service.py
+- [x] T033 [P] File storage service with SHA256 hashing in backend/src/services/file_service.py
+- [x] T034 [P] Rule comparison service for diff preview in backend/src/services/comparison_service.py
+- [x] T035 POST /api/salt-rules/upload endpoint implementation
+- [x] T036 GET /api/salt-rules/{ruleSetId}/validation endpoint implementation
+- [x] T037 GET /api/salt-rules/{ruleSetId}/preview endpoint implementation
+- [x] T038 POST /api/salt-rules/{ruleSetId}/publish endpoint implementation
+- [x] T039 GET /api/salt-rules endpoint implementation
+- [x] T040 GET /api/salt-rules/{ruleSetId} endpoint implementation
 
 ## Phase 3.7: Database Integration
-- [ ] T041 Database operations for rule set lifecycle management
-- [ ] T042 Resolved rules table generation on publish
-- [ ] T043 CSV export functionality for validation results
+- [x] T041 Database operations for rule set lifecycle management
+- [x] T042 Resolved rules table generation on publish
+- [x] T043 CSV export functionality for validation results
 
 ## Phase 3.8: Polish
 - [ ] T044 Error handling and structured logging implementation

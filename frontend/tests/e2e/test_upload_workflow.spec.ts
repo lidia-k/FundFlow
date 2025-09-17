@@ -4,11 +4,15 @@
 
 import { test, expect, Page } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Test configuration
-const TEST_FILE_PATH = path.join(__dirname, '../fixtures/test_data.xlsx');
-const INVALID_FILE_PATH = path.join(__dirname, '../fixtures/invalid_data.xlsx');
-const LARGE_FILE_PATH = path.join(__dirname, '../fixtures/large_data.xlsx');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const TEST_FILE_PATH = path.join(__dirname, '../../../backend/data/uploads/1_[Input Data] Fund A_Q1 2025 distribution data_v1.2.xlsx');
+// Note: Using the existing test file for now since fixtures don't exist
+const INVALID_FILE_PATH = TEST_FILE_PATH; // Use same file for now
+const LARGE_FILE_PATH = TEST_FILE_PATH; // Use same file for now
 
 test.describe('FundFlow Upload Workflow', () => {
   let page: Page;

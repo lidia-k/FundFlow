@@ -37,6 +37,7 @@ async def startup_event():
 
     # Import all models to ensure they're registered with SQLAlchemy
     from src.models import User, UserSession, Investor, Distribution, ValidationError
+    from src.models import SourceFile, SaltRuleSet, WithholdingRule, CompositeRule, ValidationIssue, StateEntityTaxRuleResolved
 
     # Initialize database tables
     logger.info("Initializing database...")

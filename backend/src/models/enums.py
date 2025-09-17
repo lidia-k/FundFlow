@@ -107,3 +107,24 @@ class USJurisdiction(Enum):
     WI = "WI"
     WY = "WY"
     DC = "DC"
+
+
+class RuleSetStatus(Enum):
+    """SALT rule set status enumeration."""
+    DRAFT = "draft"
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class Quarter(Enum):
+    """Quarter enumeration for SALT rule sets."""
+    Q1 = "Q1"
+    Q2 = "Q2"
+    Q3 = "Q3"
+    Q4 = "Q4"
+
+
+class IssueSeverity(Enum):
+    """Validation issue severity enumeration."""
+    ERROR = "error"
+    WARNING = "warning"
