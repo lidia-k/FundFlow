@@ -231,8 +231,8 @@ ios/ or android/
 - [x] Phase 0: Research complete (/plan command) - research.md generated with technology decisions
 - [x] Phase 1: Design complete (/plan command) - data-model.md, contracts/, quickstart.md created
 - [x] Phase 2: Task planning complete (/plan command - describe approach only) - 35-40 task strategy defined
-- [ ] Phase 3: Tasks generated (/tasks command)
-- [ ] Phase 4: Implementation complete
+- [x] Phase 3: Tasks generated (/tasks command)
+- [x] Phase 4: Implementation complete
 - [ ] Phase 5: Validation passed
 
 **Gate Status**:

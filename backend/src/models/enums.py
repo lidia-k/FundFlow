@@ -1,29 +1,57 @@
 """Shared enums for models."""
 
 from enum import Enum
+from typing import Dict
 
 
 class InvestorEntityType(Enum):
-    """Investor entity type enumeration."""
-    CORPORATION = "Corporation"
-    LIMITED_PARTNERSHIP = "Limited Partnership"
-    EXEMPT_ORGANIZATION = "Exempt Organization"
-    LLC_TAXED_AS_PARTNERSHIP = "LLC_Taxed as Partnership"
-    INDIVIDUAL = "Individual"
-    TRUST = "Trust"
-    S_CORPORATION = "S Corporation"
-    PARTNERSHIP = "Partnership"
-    JOINT_TENANCY_TENANCY_IN_COMMON = "Joint Tenancy / Tenancy in Common"
-    GOVERNMENT_BENEFIT_PLAN = "Government Benefit Plan"
-    IRA_KEOGH = "IRA/Keogh"
-    EXEMPT_ORGANIZATION_BENEFIT = "Exempt Organization_Benefit"
-    LLP = "LLP"
-    BENEFIT_PLAN_INVESTOR_ERISA_TITLE_I = "Benefit Plan Investor [ERISA Title I Plan]"
-    GRANTOR_TRUST = "Grantor Trust"
-    LLC_TAXED_AS_CORPORATION = "LLC_Taxed as Corporation"
-    LLC_TAXED_AS_PARTNERSHIP_ALT = "LLC – Taxed as Partnership"
-    ESTATE = "Estate"
-    BENEFIT_PLAN_INVESTOR_PLAN_ASSETS = "Benefit Plan Investor [Plan Assets Entity_ERISA 3(42)]"
+    """Investor entity type enumeration with SALT coding support."""
+
+    def __new__(cls, display_value: str, coding: str):
+        """Create enum member with both display value and SALT coding."""
+        obj = object.__new__(cls)
+        obj._value_ = display_value
+        obj.coding = coding
+        return obj
+
+    # Entity types with their corresponding SALT coding values
+    CORPORATION = ("Corporation", "Corporation")
+    LIMITED_PARTNERSHIP = ("Limited Partnership", "Partnership")
+    EXEMPT_ORGANIZATION = ("Exempt Organization", "Exempt Org")
+    LLC_TAXED_AS_PARTNERSHIP = ("LLC_Taxed as Partnership", "Partnership")
+    INDIVIDUAL = ("Individual", "Individual")
+    TRUST = ("Trust", "Trust")
+    S_CORPORATION = ("S Corporation", "S Corporation")
+    PARTNERSHIP = ("Partnership", "Partnership")
+    JOINT_TENANCY_TENANCY_IN_COMMON = ("Joint Tenancy / Tenancy in Common", "Individual")
+    GOVERNMENT_BENEFIT_PLAN = ("Government Benefit Plan", "Exempt Org")
+    IRA_KEOGH = ("IRA/Keogh", "IRA")
+    EXEMPT_ORGANIZATION_BENEFIT = ("Exempt Organization_Benefit", "Exempt Org")
+    LLP = ("LLP", "Partnership")
+    BENEFIT_PLAN_INVESTOR_ERISA_TITLE_I = ("Benefit Plan Investor [ERISA Title I Plan]", "Exempt Org")
+    GRANTOR_TRUST = ("Grantor Trust", "Individual")
+    LLC_TAXED_AS_CORPORATION = ("LLC_Taxed as Corporation", "Corporation")
+    LLC_TAXED_AS_PARTNERSHIP_ALT = ("LLC – Taxed as Partnership", "Partnership")
+    ESTATE = ("Estate", "Partnership")
+    BENEFIT_PLAN_INVESTOR_PLAN_ASSETS = ("Benefit Plan Investor [Plan Assets Entity_ERISA 3(42)]", "Exempt Org")
+
+    @classmethod
+    def get_by_coding(cls, coding: str) -> "InvestorEntityType":
+        """Get entity type by its SALT coding value."""
+        for entity_type in cls:
+            if entity_type.coding == coding:
+                return entity_type
+        raise ValueError(f"No entity type found for coding: {coding}")
+
+    @classmethod
+    def get_all_codings(cls) -> Dict[str, str]:
+        """Get mapping of all entity types to their coding values."""
+        return {entity_type.value: entity_type.coding for entity_type in cls}
+
+    @classmethod
+    def get_unique_codings(cls) -> set[str]:
+        """Get set of all unique coding values."""
+        return {entity_type.coding for entity_type in cls}
 
 
 class USJurisdiction(Enum):

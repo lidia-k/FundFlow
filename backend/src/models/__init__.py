@@ -2,8 +2,9 @@
 
 from .user import User
 from .user_session import UserSession, UploadStatus
-from .investor import Investor, InvestorEntityType
-from .distribution import Distribution, JurisdictionType
+from .investor import Investor
+from .enums import InvestorEntityType, USJurisdiction
+from .distribution import Distribution
 from .validation_error import ValidationError, ErrorSeverity
 
 __all__ = [
@@ -12,8 +13,8 @@ __all__ = [
     "UploadStatus",
     "Investor",
     "InvestorEntityType",
+    "USJurisdiction",
     "Distribution",
-    "JurisdictionType",
     "ValidationError",
     "ErrorSeverity",
 ]
