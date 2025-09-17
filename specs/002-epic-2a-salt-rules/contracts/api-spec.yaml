@@ -1,0 +1,725 @@
+openapi: 3.0.3
+info:
+  title: FundFlow SALT Rules API
+  description: Epic 2A - SALT Rules Ingestion & Publishing
+  version: 2.1.0
+  contact:
+    name: FundFlow Development Team
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+
+paths:
+  /admin/salt-rules/upload:
+    post:
+      summary: Upload SALT rule workbook
+      description: Upload Excel file (.xlsx/.xlsm) with SALT rules for specified year/quarter
+      tags: [Admin - SALT Rules]
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, year, quarter]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel workbook (.xlsx/.xlsm)
+                year:
+                  type: integer
+                  minimum: 2020
+                  maximum: 2030
+                  example: 2025
+                quarter:
+                  type: string
+                  enum: [Q1, Q2, Q3, Q4]
+                  example: Q1
+      responses:
+        201:
+          description: File uploaded and processing started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleSetResponse'
+        409:
+          description: Identical file already exists for this period
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: IDEMPOTENT_NOOP
+                message: Identical file already uploaded for 2025 Q1
+                details:
+                  existing_rule_set_id: 123
+        422:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/salt-rules/{rule_set_id}:
+    get:
+      summary: Get rule set details
+      description: Get detailed information about a specific rule set including status and validation issues
+      tags: [Admin - SALT Rules]
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: rule_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Rule set details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleSetDetailResponse'
+        404:
+          description: Rule set not found
+
+  /admin/salt-rules/{rule_set_id}/validation-issues:
+    get:
+      summary: Get validation issues
+      description: Get validation issues for a rule set with optional filtering
+      tags: [Admin - SALT Rules]
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: rule_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [error, warning]
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        200:
+          description: Validation issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationIssue'
+            text/csv:
+              schema:
+                type: string
+                example: |
+                  row,sheet,state_code,entity_type_code,code,message,severity
+                  5,Withholding,XX,,UNKNOWN_REFERENCE,Unknown state code: XX,error
+
+  /admin/salt-rules/{rule_set_id}/preview:
+    get:
+      summary: Preview parsed rules
+      description: Get paginated preview of parsed rules from a draft rule set
+      tags: [Admin - SALT Rules]
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: rule_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: rule_type
+          in: query
+          schema:
+            type: string
+            enum: [withholding, composite]
+        - name: state_code
+          in: query
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+        - name: entity_type_code
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        200:
+          description: Parsed rules preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RulesPreviewResponse'
+
+  /admin/salt-rules/{rule_set_id}/diff:
+    get:
+      summary: Compare rule set with active
+      description: Get differences between draft rule set and currently active rule set for same period
+      tags: [Admin - SALT Rules]
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: rule_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Rule set diff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleSetDiffResponse'
+        404:
+          description: No active rule set found for comparison
+
+  /admin/salt-rules/{rule_set_id}/publish:
+    post:
+      summary: Publish rule set
+      description: Activate a draft rule set, archive previous active, and generate resolved rules
+      tags: [Admin - SALT Rules]
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: rule_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force_archive_active:
+                  type: boolean
+                  default: false
+                  description: Whether to auto-archive existing active rule set
+      responses:
+        200:
+          description: Rule set published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleSetResponse'
+        409:
+          description: Cannot publish due to validation errors or active conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/salt-rules:
+    get:
+      summary: List rule sets
+      description: Get paginated list of rule sets with filtering options
+      tags: [Admin - SALT Rules]
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, active, archived]
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: quarter
+          in: query
+          schema:
+            type: string
+            enum: [Q1, Q2, Q3, Q4]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        200:
+          description: List of rule sets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleSetListResponse'
+
+  # Calculation Engine APIs (for Epic 2B integration)
+  /salt-rules/active:
+    get:
+      summary: Get active rule set
+      description: Get currently active rule set for calculation engine
+      tags: [SALT Rules Engine]
+      parameters:
+        - name: effective_date
+          in: query
+          schema:
+            type: string
+            format: date
+            description: Date to determine active rule set (defaults to today)
+      responses:
+        200:
+          description: Active rule set information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveRuleSetResponse'
+        404:
+          description: No active rule set found for date
+
+  /salt-rules/resolved/{rule_set_id}:
+    get:
+      summary: Get resolved rules for calculation
+      description: Get optimized resolved rules table for fast calculation lookups
+      tags: [SALT Rules Engine]
+      parameters:
+        - name: rule_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: state_code
+          in: query
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+        - name: entity_type_code
+          in: query
+          schema:
+            type: string
+      responses:
+        200:
+          description: Resolved rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResolvedRule'
+
+components:
+  schemas:
+    RuleSetResponse:
+      type: object
+      required: [id, year, quarter, status, created_at]
+      properties:
+        id:
+          type: integer
+          example: 123
+        year:
+          type: integer
+          example: 2025
+        quarter:
+          type: string
+          enum: [Q1, Q2, Q3, Q4]
+          example: Q1
+        status:
+          type: string
+          enum: [draft, active, archived]
+          example: draft
+        effective_from:
+          type: string
+          format: date
+          example: "2025-01-01"
+        effective_to:
+          type: string
+          format: date
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-09-17T10:30:00-07:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-09-17T10:30:00-07:00"
+        source_file:
+          $ref: '#/components/schemas/SourceFile'
+
+    RuleSetDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/RuleSetResponse'
+        - type: object
+          properties:
+            validation_summary:
+              type: object
+              properties:
+                total_issues:
+                  type: integer
+                  example: 3
+                error_count:
+                  type: integer
+                  example: 1
+                warning_count:
+                  type: integer
+                  example: 2
+                can_publish:
+                  type: boolean
+                  example: false
+            rule_counts:
+              type: object
+              properties:
+                withholding_rules:
+                  type: integer
+                  example: 245
+                composite_rules:
+                  type: integer
+                  example: 198
+
+    SourceFile:
+      type: object
+      required: [id, filename, sha256, uploaded_at]
+      properties:
+        id:
+          type: integer
+          example: 456
+        filename:
+          type: string
+          example: "EY_SALT_Rules_2025_Q1.xlsx"
+        sha256:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          example: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2025-09-17T10:30:00-07:00"
+
+    ValidationIssue:
+      type: object
+      required: [row, sheet, code, message, severity]
+      properties:
+        row:
+          type: integer
+          description: Excel row number (1-based)
+          example: 5
+        sheet:
+          type: string
+          enum: [Withholding, Composite]
+          example: Withholding
+        state_code:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          nullable: true
+          example: CA
+        entity_type_code:
+          type: string
+          nullable: true
+          example: INDIVIDUAL
+        code:
+          type: string
+          enum: [UNSUPPORTED_FILE_TYPE, MISSING_SHEET, DUPLICATE_RULE, UNKNOWN_REFERENCE, INVALID_NUMBER, COVERAGE_GAP]
+          example: UNKNOWN_REFERENCE
+        message:
+          type: string
+          example: "Unknown state code: XX"
+        severity:
+          type: string
+          enum: [error, warning]
+          example: error
+
+    RulesPreviewResponse:
+      type: object
+      required: [rules, pagination]
+      properties:
+        rules:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/WithholdingRule'
+              - $ref: '#/components/schemas/CompositeRule'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    WithholdingRule:
+      type: object
+      required: [id, state_code, entity_type_code]
+      properties:
+        id:
+          type: integer
+          example: 789
+        state_code:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: CA
+        entity_type_code:
+          type: string
+          example: INDIVIDUAL
+        rate:
+          type: number
+          multipleOf: 0.000001
+          minimum: 0
+          maximum: 1
+          nullable: true
+          example: 0.0575
+        income_threshold:
+          type: number
+          multipleOf: 0.01
+          minimum: 0
+          nullable: true
+          example: 1000000.00
+        tax_threshold:
+          type: number
+          multipleOf: 0.01
+          minimum: 0
+          nullable: true
+          example: 57500.00
+
+    CompositeRule:
+      type: object
+      required: [id, state_code, entity_type_code]
+      properties:
+        id:
+          type: integer
+          example: 790
+        state_code:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: CA
+        entity_type_code:
+          type: string
+          example: INDIVIDUAL
+        rate:
+          type: number
+          multipleOf: 0.000001
+          minimum: 0
+          maximum: 1
+          nullable: true
+          example: 0.133
+        income_threshold:
+          type: number
+          multipleOf: 0.01
+          minimum: 0
+          nullable: true
+          example: 0.00
+        mandatory:
+          type: boolean
+          nullable: true
+          example: true
+
+    RuleSetDiffResponse:
+      type: object
+      required: [added, changed, removed]
+      properties:
+        added:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleDiff'
+        changed:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleDiff'
+        removed:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleDiff'
+        summary:
+          type: object
+          properties:
+            total_changes:
+              type: integer
+              example: 15
+            added_count:
+              type: integer
+              example: 5
+            changed_count:
+              type: integer
+              example: 8
+            removed_count:
+              type: integer
+              example: 2
+
+    RuleDiff:
+      type: object
+      required: [state_code, entity_type_code, rule_type]
+      properties:
+        state_code:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: CA
+        entity_type_code:
+          type: string
+          example: INDIVIDUAL
+        rule_type:
+          type: string
+          enum: [withholding, composite]
+          example: withholding
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: rate
+              old_value:
+                nullable: true
+                example: 0.055
+              new_value:
+                nullable: true
+                example: 0.0575
+
+    RuleSetListResponse:
+      type: object
+      required: [rule_sets, pagination]
+      properties:
+        rule_sets:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleSetResponse'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    ActiveRuleSetResponse:
+      type: object
+      required: [rule_set_id, year, quarter, effective_from]
+      properties:
+        rule_set_id:
+          type: integer
+          example: 123
+        year:
+          type: integer
+          example: 2025
+        quarter:
+          type: string
+          enum: [Q1, Q2, Q3, Q4]
+          example: Q1
+        effective_from:
+          type: string
+          format: date
+          example: "2025-01-01"
+        effective_to:
+          type: string
+          format: date
+          nullable: true
+          example: null
+
+    ResolvedRule:
+      type: object
+      required: [state_code, entity_type_code]
+      properties:
+        state_code:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: CA
+        entity_type_code:
+          type: string
+          example: INDIVIDUAL
+        withholding_rate:
+          type: number
+          nullable: true
+          example: 0.0575
+        withholding_income_threshold:
+          type: number
+          nullable: true
+          example: 1000000.00
+        withholding_tax_threshold:
+          type: number
+          nullable: true
+          example: 57500.00
+        composite_rate:
+          type: number
+          nullable: true
+          example: 0.133
+        composite_income_threshold:
+          type: number
+          nullable: true
+          example: 0.00
+        composite_mandatory:
+          type: boolean
+          nullable: true
+          example: true
+        source_withholding_id:
+          type: integer
+          nullable: true
+          example: 789
+        source_composite_id:
+          type: integer
+          nullable: true
+          example: 790
+
+    Pagination:
+      type: object
+      required: [page, limit, total, pages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          example: 50
+        total:
+          type: integer
+          minimum: 0
+          example: 245
+        pages:
+          type: integer
+          minimum: 0
+          example: 5
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: File validation failed
+        details:
+          type: object
+          additionalProperties: true
+          example:
+            field: file
+            reason: Invalid file type
+
+  securitySchemes:
+    AdminAuth:
+      type: http
+      scheme: bearer
+      description: Admin JWT token for SALT rules management
+
+tags:
+  - name: Admin - SALT Rules
+    description: Administrative operations for SALT rules management
+  - name: SALT Rules Engine
+    description: APIs for calculation engine to access active rules

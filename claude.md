@@ -160,6 +160,7 @@ make lint-fix        # Auto-fix linting issues
 - ✅ **v1.3 Format Support** - Updated ExcelService with flexible column detection for dynamic state-based parsing
 - ✅ **Project Onboarding Complete** - Comprehensive memory files created with project overview, tech stack, conventions, and development workflows
 - 🎯 **Ready for user validation**: Working end-to-end prototype with all containers healthy
+- 🚀 **Epic 2A Planning**: SALT Rules Ingestion & Publishing system designed and specified
 
 ## Prototype Scope & Limitations
 ### In Scope for v1.2
@@ -196,6 +197,29 @@ make lint-fix        # Auto-fix linting issues
 - **Processing**: Synchronous processing (no async/queuing for prototype)
 - **Security**: Basic file validation, no sensitive data storage yet
 - **Future Migration**: Code should be structured to facilitate v1.3 microservices transition
+
+## Epic 2A: SALT Rules Management System
+### Overview
+Epic 2A implements the administrative interface for managing EY SALT rule data that drives calculations in Epic 1. Tax admins can upload Excel workbooks containing withholding and composite tax rules, validate and stage them, then publish versioned rule sets.
+
+### Key Features
+- **Excel Upload**: Support for .xlsx/.xlsm files with withholding and composite rule sheets
+- **Validation Engine**: Multi-layer validation with structured error reporting and CSV export
+- **Staging Workflow**: Draft → Active → Archived status with diff comparison
+- **Versioned Publishing**: Year/Quarter-based rule sets with atomic activation
+- **Resolved Rules**: Optimized read-only table combining both rule types for calculation performance
+
+### Database Schema
+- `source_files`: File storage with SHA256 deduplication
+- `salt_rule_sets`: Versioned rule collections with lifecycle management
+- `withholding_rules` & `composite_rules`: Separate authoritative rule tables
+- `state_entity_tax_rules_resolved`: Denormalized view for fast calculation lookups
+
+### Specifications
+- **Spec**: `specs/002-epic-2a-salt-rules/spec.md` - Complete feature requirements
+- **API**: `specs/002-epic-2a-salt-rules/contracts/api-spec.yaml` - OpenAPI specification
+- **Data Model**: `specs/002-epic-2a-salt-rules/data-model.md` - Database design
+- **Quickstart**: `specs/002-epic-2a-salt-rules/quickstart.md` - E2E workflow testing
 
 ## Common Development Tasks
 ### Adding New API Endpoint
