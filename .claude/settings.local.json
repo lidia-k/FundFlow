@@ -10,7 +10,11 @@
       "mcp__serena__list_dir",
       "mcp__serena__get_symbols_overview",
       "mcp__serena__find_symbol",
-      "mcp__serena__find_file"
+      "mcp__serena__find_file",
+      "Bash(sqlite3:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

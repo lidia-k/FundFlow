@@ -45,13 +45,20 @@ export default function Upload() {
     }
 
     setUploading(true);
-    
+
     try {
       const result = await api.uploadFile(uploadedFile);
-      
+
       if (result.status === 'completed') {
         toast.success('File uploaded and processed successfully!');
         navigate(`/results/${result.session_id}`);
+      } else if (result.status === 'validation_failed') {
+        // Handle detailed validation errors
+        let errorMessage = result.message + '\n\n' + result.errors.slice(0, 5).join('\n');
+        if (result.errors.length > 5) {
+          errorMessage += `\n... and ${result.errors.length - 5} more errors`;
+        }
+        toast.error(errorMessage, { duration: 8000 });
       } else {
         toast.error(result.message || 'Upload failed');
       }

@@ -44,6 +44,18 @@ export const api = {
     return response.data;
   },
 
+  // Get preview of calculation results
+  getResultsPreview: async (sessionId: string, limit: number = 100): Promise<any> => {
+    const response = await apiClient.get(`/results/${sessionId}/preview?limit=${limit}`);
+    return response.data;
+  },
+
+  // Get preview of the raw uploaded file content
+  getFilePreview: async (sessionId: string, limit: number = 100): Promise<any> => {
+    const response = await apiClient.get(`/results/${sessionId}/file-preview?limit=${limit}`);
+    return response.data;
+  },
+
   // Download results file
   downloadResults: async (sessionId: string): Promise<Blob> => {
     const response = await apiClient.get(`/results/${sessionId}/download`, {

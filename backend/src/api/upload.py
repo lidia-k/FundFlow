@@ -49,35 +49,58 @@ async def upload_file(
         excel_service = ExcelService()
         investor_service = InvestorService(db)
         distribution_service = DistributionService(db)
-        validation_service = UploadValidationService(db)
 
-        # Get or create default user
-        user = user_service.get_or_create_default_user()
-
-        # Save uploaded file temporarily for processing
+        # Save uploaded file temporarily for validation
         file_extension = Path(file.filename).suffix
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
             content = await file.read()
             temp_file.write(content)
             temp_file_path = Path(temp_file.name)
 
-        # TODO: Configure S3 storage for production
-        # Save raw uploaded file permanently (local storage for now)
-        upload_dir = Path("data/uploads")
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        saved_file_path = upload_dir / f"{user.id}_{file.filename}"
-
-        # Save the raw file content
-        with open(saved_file_path, 'wb') as saved_file:
-            saved_file.write(content)
-
         try:
+            # Parse and validate Excel file BEFORE creating any database entries
+            parsing_result = excel_service.parse_excel_file(
+                temp_file_path, file.filename
+            )
+
+            # Check for blocking validation errors
+            blocking_errors = [error for error in parsing_result.errors
+                             if error.severity.value == "ERROR"]
+
+            if blocking_errors:
+                # Clean up temp file
+                if temp_file_path.exists():
+                    os.unlink(temp_file_path)
+
+                # Return detailed error response without saving anything
+                error_details = []
+                for error in blocking_errors:
+                    error_detail = f"Row {error.row_number}, {error.column_name}: {error.error_message}"
+                    if error.field_value:
+                        error_detail += f" (Value: '{error.field_value}')"
+                    error_details.append(error_detail)
+
+                return {
+                    "status": "validation_failed",
+                    "message": "File validation failed. Please fix the following errors and try again:",
+                    "errors": error_details,
+                    "error_count": len(blocking_errors),
+                    "total_rows": parsing_result.total_rows
+                }
+
+            # File is valid - now proceed with saving and processing
+            # Get or create default user
+            user = user_service.get_or_create_default_user()
+
             # Calculate file hash for idempotency
             file_hash = excel_service.calculate_file_hash(temp_file_path)
 
             # Check for duplicate files
             existing_session = session_service.check_file_duplicate(file_hash, user.id)
             if existing_session:
+                # Clean up temp file
+                if temp_file_path.exists():
+                    os.unlink(temp_file_path)
                 return {
                     "session_id": existing_session.session_id,
                     "status": existing_session.status.value,
@@ -85,66 +108,23 @@ async def upload_file(
                     "duplicate": True
                 }
 
-            # Create session
+            # TODO: Configure S3 storage for production
+            # Save raw uploaded file permanently (local storage for now)
+            upload_dir = Path("data/uploads")
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            saved_file_path = upload_dir / f"{user.id}_{file.filename}"
+
+            # Save the raw file content permanently
+            with open(saved_file_path, 'wb') as saved_file:
+                saved_file.write(content)
+
+            # Create session in database
             session = session_service.create_session(
                 user_id=user.id,
                 upload_filename=temp_file_path.name,
                 original_filename=file.filename,
                 file_hash=file_hash,
                 file_size=file.size or 0
-            )
-
-            # Update status to uploading
-            session_service.update_session_status(
-                session.session_id, UploadStatus.UPLOADING, 5
-            )
-
-            # Parse Excel file
-            session_service.update_session_status(
-                session.session_id, UploadStatus.PARSING, 40
-            )
-
-            parsing_result = excel_service.parse_excel_file(
-                temp_file_path, file.filename
-            )
-
-            # Update status to validating
-            session_service.update_session_status(
-                session.session_id, UploadStatus.VALIDATING, 70
-            )
-
-            # Save validation errors
-            if parsing_result.errors:
-                validation_service.save_validation_errors(
-                    session.session_id, parsing_result.errors
-                )
-
-            # Check if there are blocking errors
-            has_errors = validation_service.has_blocking_errors(session.session_id)
-            if has_errors:
-                session_service.update_session_status(
-                    session.session_id,
-                    UploadStatus.FAILED_VALIDATION,
-                    70,
-                    "File contains validation errors that prevent processing"
-                )
-                session_service.update_session_counts(
-                    session.session_id,
-                    parsing_result.total_rows,
-                    0
-                )
-                return {
-                    "session_id": session.session_id,
-                    "status": UploadStatus.FAILED_VALIDATION.value,
-                    "message": "File contains validation errors",
-                    "total_rows": parsing_result.total_rows,
-                    "valid_rows": 0,
-                    "error_count": len(parsing_result.errors)
-                }
-
-            # Update status to saving
-            session_service.update_session_status(
-                session.session_id, UploadStatus.SAVING, 90
             )
 
             # Process valid data

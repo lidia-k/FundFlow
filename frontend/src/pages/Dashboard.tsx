@@ -3,10 +3,20 @@ import { Link } from 'react-router-dom';
 import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { api } from '../api/client';
 import type { SessionInfo } from '../types/api';
+import FilePreviewModal from '../components/FilePreviewModal';
 
 export default function Dashboard() {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    filename: string;
+  }>({
+    isOpen: false,
+    sessionId: '',
+    filename: '',
+  });
 
   useEffect(() => {
     loadSessions();
@@ -44,6 +54,22 @@ export default function Dashboard() {
       default:
         return 'text-gray-600 bg-gray-100';
     }
+  };
+
+  const handleFileNameClick = (session: SessionInfo) => {
+    setPreviewModal({
+      isOpen: true,
+      sessionId: session.session_id,
+      filename: session.filename,
+    });
+  };
+
+  const handleClosePreview = () => {
+    setPreviewModal({
+      isOpen: false,
+      sessionId: '',
+      filename: '',
+    });
   };
 
   return (
@@ -138,7 +164,7 @@ export default function Dashboard() {
                 {sessions.slice(0, 10).map((session) => (
                   <tr key={session.session_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-primary-600 hover:text-primary-900 cursor-pointer" onClick={() => handleFileNameClick(session)}>
                         {session.filename}
                       </div>
                       <div className="text-sm text-gray-500">
@@ -168,6 +194,14 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={handleClosePreview}
+        sessionId={previewModal.sessionId}
+        filename={previewModal.filename}
+      />
     </div>
   );
 }

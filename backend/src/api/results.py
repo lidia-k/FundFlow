@@ -1,5 +1,7 @@
 """Results API endpoint for retrieving session results."""
 
+import os
+from pathlib import Path
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -7,6 +9,7 @@ from ..database.connection import get_db
 from ..services.session_service import SessionService
 from ..services.distribution_service import DistributionService
 from ..services.validation_service import ValidationService
+from ..services.excel_service import ExcelService
 
 router = APIRouter()
 
@@ -161,3 +164,85 @@ async def get_results_preview(
         "preview_limit": limit,
         "showing_count": len(preview_data)
     }
+
+
+@router.get("/results/{session_id}/file-preview")
+async def get_file_preview(
+    session_id: str,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get preview of the raw uploaded Excel file content.
+
+    Shows the actual data from the uploaded file before processing.
+    """
+    # Initialize services
+    session_service = SessionService(db)
+    excel_service = ExcelService()
+
+    # Get session
+    session = session_service.get_session_by_id(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found"
+        )
+
+    # Construct the file path where the uploaded file is stored
+    upload_dir = Path("data/uploads")
+    file_path = upload_dir / f"{session.user_id}_{session.original_filename}"
+
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Uploaded file not found"
+        )
+
+    try:
+        # Read the raw Excel file content
+        parsing_result = excel_service.parse_excel_file(file_path, session.original_filename)
+
+        # Limit the preview data
+        limited_data = parsing_result.data[:limit]
+
+        # Format the raw data for display
+        preview_data = []
+        for row in limited_data:
+            preview_data.append({
+                "investor_name": row.get('investor_name', ''),
+                "entity_type": row.get('investor_entity_type', ''),
+                "tax_state": row.get('investor_tax_state', ''),
+                "tx_amount": row.get('tx_amount', 0),
+                "nm_amount": row.get('nm_amount', 0),
+                "co_amount": row.get('co_amount', 0),
+                "composite_exemption": "Yes" if row.get('composite_exemption', False) else "No",
+                "withholding_exemption": "Yes" if row.get('withholding_exemption', False) else "No",
+                "fund_code": parsing_result.fund_info.get('fund_code', ''),
+                "period": f"{parsing_result.fund_info.get('period_quarter', '')} {parsing_result.fund_info.get('period_year', '')}"
+            })
+
+        return {
+            "session_id": session_id,
+            "filename": session.original_filename,
+            "status": session.status.value,
+            "file_info": {
+                "fund_code": parsing_result.fund_info.get('fund_code', ''),
+                "period_quarter": parsing_result.fund_info.get('period_quarter', ''),
+                "period_year": parsing_result.fund_info.get('period_year', ''),
+                "file_format": parsing_result.fund_info.get('file_format', 'v1.3')
+            },
+            "preview_data": preview_data,
+            "total_rows": parsing_result.total_rows,
+            "valid_rows": parsing_result.valid_rows,
+            "preview_limit": limit,
+            "showing_count": len(preview_data),
+            "has_errors": len(parsing_result.errors) > 0,
+            "error_count": len(parsing_result.errors)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read file: {str(e)}"
+        )
