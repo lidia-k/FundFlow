@@ -10,3 +10,7 @@
   please ask for a decision. Please build UI using Shadcn
   MCP. For completed tasks, please mark the checkbox for a
   user review. 
+  
+
+Please implement it step by step, and check with me first as each phase is complete. If 
+there is anything unclear, please stop and ask me first to clarify.

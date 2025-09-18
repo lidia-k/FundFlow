@@ -1,13 +1,26 @@
-# Recent Changes
+# Recent Changes Log
 
-## Distribution Service Refactor (Latest)
-- Refactored distribution_service.py to support dynamic state-based processing
-- Replaced hardcoded TX_NM/CO jurisdiction handling with flexible approach
-- Added support for variable number of states from parsed Excel data
-- Uses USJurisdiction enum for proper state validation
-- Dynamically builds totals and exemption summaries for any supported states
-- Improves data structure handling for distributions, exemptions, and composites
-- Enables system to handle Excel files with different state configurations
+## Epic 2A SALT Rules Management UI - Frontend Implementation
+- **Date**: 2025-09-18
+- **Branch**: 002-epic-2a-salt
+- **Status**: Completed frontend UI components
 
-## Claude Settings Update
-- Added additional MCP Serena tool permissions for better code analysis capabilities
+### Changes Made:
+- Added new React pages: SaltRulesDashboard, SaltRulesUpload, RuleSetDetails, RulePreview
+- Created TypeScript types for SALT rules entities (saltRules.ts)
+- Added API client for SALT rules operations (saltRules.ts)
+- Updated App.tsx with new routing for SALT rules workflow
+- Added SALT Rules navigation menu item in Layout.tsx
+- Extended MCP tools permissions in Claude settings
+- Updated development prompt template with step-by-step guidance
+
+### Technical Details:
+- Frontend components use Shadcn UI components for consistency
+- New route structure: /salt-rules, /salt-rules/upload, /salt-rules/:ruleSetId, /salt-rules/:ruleSetId/preview
+- TypeScript types define RuleSet, Rule, and related entities for type safety
+- API client handles CRUD operations for rule management
+
+### Next Steps:
+- Backend API implementation needed to support frontend operations
+- Database schema updates for SALT rules storage
+- Integration testing between frontend and backend components

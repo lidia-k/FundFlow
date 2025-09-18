@@ -69,7 +69,7 @@ FundFlow/
 - **Deployment**: Docker + Docker Compose for development
 
 **Key Design Principles**:
-1. Simplicity over complexity
+1. Simplicity over complexity. Apply **YAGNI**: build only what’s needed.  
 2. Rapid prototyping for user feedback
 3. User experience validation focus
 4. Future scalability considerations
@@ -220,7 +220,6 @@ make lint-fix        # Auto-fix linting issues
 - **Processing**: 30min processing for typical files (~10 portfolios, ~20 LPs)
 
 ### Critical Constraints
-- **EY Data**: SALT rules are pre-stored in the system - users only upload portfolio data
 - **Processing**: Synchronous processing (no async/queuing for prototype)
 - **Security**: Basic file validation, no sensitive data storage yet
 - **Future Migration**: Code should be structured to facilitate v1.3 microservices transition
@@ -277,8 +276,7 @@ make logs                     # All application logs
 - Always run in headless mode
 
 ## MCP Context 7 
-Always use context7 when I need code generation, setup or configuration steps, or
-library/API documentation. This means you should automatically use the Context7 MCP tools to resolve library id and get library docs without me having to explicitly ask.
+Always use context7 when I need code generation, setup or configuration steps, or library/API documentation. This means you should automatically use the Context7 MCP tools to resolve library id and get library docs without me having to explicitly ask.
 
 ## IMPORTANT Key Rules
 - When unsure about implementation details, always ask the developer first.
@@ -289,3 +287,8 @@ library/API documentation. This means you should automatically use the Context7 
 - Never use pip install directly - use uv add instead
 - Keep .venv in the project root directory
 - Ensure virtual environment is activated before running Python code
+
+## Test-First (Non-Negotiable)
+- **Order:** Unit → Contract → Integration → E2E → Implementation.  
+- Write tests first (Red-Green-Refactor).  
+- All merges require passing tests and proof of the TDD cycle.  

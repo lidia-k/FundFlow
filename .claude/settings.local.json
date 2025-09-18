@@ -3,7 +3,13 @@
     "allow": [
       "Bash(PYTHONPATH=. uv run python:*)",
       "mcp__serena__write_memory",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__codex-cli__ping",
+      "mcp__serena__search_for_pattern",
+      "mcp__serena__list_dir",
+      "mcp__serena__get_symbols_overview",
+      "mcp__serena__find_symbol"
     ],
     "deny": [],
     "ask": []
