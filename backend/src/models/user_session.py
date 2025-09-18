@@ -31,7 +31,6 @@ class UserSession(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     upload_filename = Column(String(255), nullable=False)
     original_filename = Column(String(255), nullable=False)
-    file_hash = Column(String(64), nullable=False)  # SHA256
     file_size = Column(Integer, nullable=False)
     status = Column(SQLEnum(UploadStatus), nullable=False, default=UploadStatus.QUEUED)
     progress_percentage = Column(Integer, nullable=False, default=0)

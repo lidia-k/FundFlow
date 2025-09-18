@@ -1,7 +1,7 @@
-"""Sessions API endpoint for retrieving user upload sessions."""
+"""Sessions API endpoint for retrieving and managing user upload sessions."""
 
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from ..database.connection import get_db
 from ..services.session_service import SessionService
@@ -86,3 +86,41 @@ def _map_upload_status_to_calculation_status(upload_status: UploadStatus) -> str
     }
 
     return status_mapping.get(upload_status, "failed")
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    db: Session = Depends(get_db)
+) -> Dict[str, str]:
+    """
+    Delete a session and all its related data.
+
+    Args:
+        session_id: The ID of the session to delete
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTPException: 404 if session not found or not authorized to delete
+    """
+    # Initialize session service
+    session_service = SessionService(db)
+
+    # For now, use dummy user_id=1 (TODO: get from authentication)
+    user_id = 1
+
+    # Attempt to delete the session
+    success = session_service.delete_session(session_id, user_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found or you are not authorized to delete it"
+        )
+
+    # Commit the transaction
+    db.commit()
+
+    return {"message": "Session deleted successfully"}

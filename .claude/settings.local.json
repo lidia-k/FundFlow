@@ -20,7 +20,9 @@
       "Bash(touch:*)",
       "Bash(rm:*)",
       "Bash(python:*)",
-      "mcp__serena__replace_symbol_body"
+      "mcp__serena__replace_symbol_body",
+      "mcp__codex-cli__ask-codex",
+      "Bash(source:*)"
     ],
     "deny": [],
     "ask": []

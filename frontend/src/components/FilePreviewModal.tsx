@@ -13,34 +13,21 @@ interface PreviewData {
   investor_name: string;
   entity_type: string;
   tax_state: string;
-  distributions: Record<string, number>;
-  composite_exemptions: Record<string, string>;
-  withholding_exemptions: Record<string, string>;
+  jurisdiction: string;
+  amount: number;
+  composite_exemption: string;
+  withholding_exemption: string;
   fund_code: string;
   period: string;
 }
 
 interface PreviewResponse {
   session_id: string;
-  filename: string;
   status: string;
-  file_info: {
-    fund_code: string;
-    period_quarter: string;
-    period_year: string;
-    file_format: string;
-  };
   preview_data: PreviewData[];
-  available_states: {
-    distributions: string[];
-    exemptions: string[];
-  };
-  total_rows: number;
-  valid_rows: number;
+  total_records: number;
   preview_limit: number;
   showing_count: number;
-  has_errors: boolean;
-  error_count: number;
 }
 
 export default function FilePreviewModal({ isOpen, onClose, sessionId, filename }: FilePreviewModalProps) {
@@ -58,7 +45,7 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getFilePreview(sessionId, 50); // Show first 50 rows
+      const data = await api.getResultsPreview(sessionId, 50); // Show first 50 rows
       setPreviewData(data);
     } catch (err) {
       console.error('Failed to load preview data:', err);
@@ -75,6 +62,7 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
     }).format(amount);
   };
 
+
   if (!isOpen) return null;
 
   return (
@@ -83,7 +71,7 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">File Preview</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Results Preview</h2>
             <p className="text-sm text-gray-500 mt-1">{filename}</p>
           </div>
           <button
@@ -115,36 +103,25 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
             <div className="space-y-4">
               {/* Summary */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-medium text-blue-900 mb-2">File Summary</h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                <h3 className="font-medium text-blue-900 mb-2">Results Preview</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-blue-600 font-medium">Status:</span>
                     <span className="ml-2 text-blue-900 capitalize">{previewData.status}</span>
                   </div>
                   <div>
-                    <span className="text-blue-600 font-medium">Total Rows:</span>
-                    <span className="ml-2 text-blue-900">{previewData.total_rows.toLocaleString()}</span>
-                  </div>
-                  <div>
-                    <span className="text-blue-600 font-medium">Valid Rows:</span>
-                    <span className="ml-2 text-blue-900">{previewData.valid_rows.toLocaleString()}</span>
+                    <span className="text-blue-600 font-medium">Total Records:</span>
+                    <span className="ml-2 text-blue-900">{previewData.total_records.toLocaleString()}</span>
                   </div>
                   <div>
                     <span className="text-blue-600 font-medium">Showing:</span>
-                    <span className="ml-2 text-blue-900">{previewData.showing_count} of {previewData.total_rows}</span>
+                    <span className="ml-2 text-blue-900">{previewData.showing_count} of {previewData.total_records}</span>
                   </div>
                   <div>
                     <span className="text-blue-600 font-medium">Fund:</span>
-                    <span className="ml-2 text-blue-900">{previewData.file_info.fund_code || 'N/A'}</span>
+                    <span className="ml-2 text-blue-900">{previewData.preview_data[0]?.fund_code || 'N/A'}</span>
                   </div>
                 </div>
-                {previewData.has_errors && (
-                  <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                    <span className="text-yellow-800 text-sm font-medium">
-                      ⚠️ {previewData.error_count} validation error{previewData.error_count !== 1 ? 's' : ''} found
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* Data Table */}
@@ -153,7 +130,6 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        {/* Fixed columns */}
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Investor Name
                         </th>
@@ -163,31 +139,26 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Tax State
                         </th>
-
-                        {/* Dynamic distribution columns */}
-                        {previewData.available_states.distributions.map((state) => (
-                          <th key={`dist-${state}`} className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {state} Amount
-                          </th>
-                        ))}
-
-                        {/* Dynamic exemption columns */}
-                        {previewData.available_states.exemptions.map((state) => (
-                          <React.Fragment key={`exempt-${state}`}>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {state} Composite
-                            </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {state} Withholding
-                            </th>
-                          </React.Fragment>
-                        ))}
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Jurisdiction
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Composite Exemption
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Withholding Exemption
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Period
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {previewData.preview_data.map((row, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                          {/* Fixed columns */}
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">
                             {row.investor_name}
                           </td>
@@ -197,37 +168,33 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                           <td className="px-4 py-3 text-sm text-gray-500">
                             {row.tax_state}
                           </td>
-
-                          {/* Dynamic distribution amounts */}
-                          {previewData.available_states.distributions.map((state) => (
-                            <td key={`dist-${state}`} className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
-                              {formatAmount(row.distributions[state] || 0)}
-                            </td>
-                          ))}
-
-                          {/* Dynamic exemptions */}
-                          {previewData.available_states.exemptions.map((state) => (
-                            <React.Fragment key={`exempt-${state}`}>
-                              <td className="px-4 py-3 text-center">
-                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  row.composite_exemptions[state] === 'Yes'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {row.composite_exemptions[state] || 'No'}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  row.withholding_exemptions[state] === 'Yes'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {row.withholding_exemptions[state] || 'No'}
-                                </span>
-                              </td>
-                            </React.Fragment>
-                          ))}
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {row.jurisdiction}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
+                            {formatAmount(row.amount)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              row.composite_exemption === 'Yes'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {row.composite_exemption}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              row.withholding_exemption === 'Yes'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {row.withholding_exemption}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {row.period}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -235,11 +202,11 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                 </div>
               </div>
 
-              {previewData.total_rows > previewData.showing_count && (
+              {previewData.total_records > previewData.showing_count && (
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-600">
-                    Showing first {previewData.showing_count} of {previewData.total_rows.toLocaleString()} rows from the uploaded file.
-                    <span className="ml-1">This is the raw data before processing.</span>
+                    Showing first {previewData.showing_count} of {previewData.total_records.toLocaleString()} distribution records.
+                    <span className="ml-1">This is the processed distribution data.</span>
                   </p>
                 </div>
               )}

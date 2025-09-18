@@ -1,7 +1,6 @@
 """Excel file validation and parsing service."""
 
 import re
-import hashlib
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -75,13 +74,6 @@ class ExcelService:
         self._global_withholding_header: Optional[str] = None
         self._global_composite_header: Optional[str] = None
 
-    def calculate_file_hash(self, file_path: Path) -> str:
-        """Calculate SHA256 hash of file."""
-        sha256_hash = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(chunk)
-        return sha256_hash.hexdigest()
 
     def extract_fund_info_from_filename(self, filename: str) -> Optional[Dict[str, str]]:
         """Extract fund code, quarter, and year from filename."""
@@ -146,8 +138,10 @@ class ExcelService:
                     self.detected_columns['withholding_exemption'][state] = header
                 continue
 
-            # Composite Exemption pattern: state + space + "Composite Exemption"
-            if header.endswith(' Composite Exemption') and len(header.split(' ')) == 3:
+            # Composite Exemption pattern: state + "Composite Exemption" (with or without space)
+            # Handles both "CO Composite Exemption" and "CO CompositeExemption"
+            if (header.endswith(' Composite Exemption') and len(header.split(' ')) == 3) or \
+               (header.endswith('CompositeExemption') and len(header.split(' ')) == 2):
                 state = header.split(' ')[0].upper()
                 if state in self.VALID_STATE_CODES:
                     self.detected_columns['composite_exemption'][state] = header

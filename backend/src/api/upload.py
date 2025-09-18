@@ -92,21 +92,6 @@ async def upload_file(
             # Get or create default user
             user = user_service.get_or_create_default_user()
 
-            # Calculate file hash for idempotency
-            file_hash = excel_service.calculate_file_hash(temp_file_path)
-
-            # Check for duplicate files
-            existing_session = session_service.check_file_duplicate(file_hash, user.id)
-            if existing_session:
-                # Clean up temp file
-                if temp_file_path.exists():
-                    os.unlink(temp_file_path)
-                return {
-                    "session_id": existing_session.session_id,
-                    "status": existing_session.status.value,
-                    "message": "File already processed",
-                    "duplicate": True
-                }
 
             # TODO: Configure S3 storage for production
             # Save raw uploaded file permanently (local storage for now)
@@ -123,7 +108,6 @@ async def upload_file(
                 user_id=user.id,
                 upload_filename=temp_file_path.name,
                 original_filename=file.filename,
-                file_hash=file_hash,
                 file_size=file.size or 0
             )
 

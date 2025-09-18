@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { api } from '../api/client';
 import type { SessionInfo } from '../types/api';
 import FilePreviewModal from '../components/FilePreviewModal';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 export default function Dashboard() {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -17,6 +18,18 @@ export default function Dashboard() {
     sessionId: '',
     filename: '',
   });
+
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    filename: string;
+  }>({
+    isOpen: false,
+    sessionId: '',
+    filename: '',
+  });
+
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadSessions();
@@ -70,6 +83,48 @@ export default function Dashboard() {
       sessionId: '',
       filename: '',
     });
+  };
+
+  const handleDeleteClick = (session: SessionInfo) => {
+    setDeleteModal({
+      isOpen: true,
+      sessionId: session.session_id,
+      filename: session.filename,
+    });
+  };
+
+  const handleCloseDelete = () => {
+    setDeleteModal({
+      isOpen: false,
+      sessionId: '',
+      filename: '',
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.sessionId) return;
+
+    setIsDeleting(true);
+    try {
+      await api.deleteSession(deleteModal.sessionId);
+
+      // Remove the session from the local state
+      setSessions(prevSessions =>
+        prevSessions.filter(session => session.session_id !== deleteModal.sessionId)
+      );
+
+      // Close the modal
+      handleCloseDelete();
+
+      // Show success message (you could add a toast notification here)
+      console.log('Session deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      // Show error message (you could add a toast notification here)
+      alert('Failed to delete the calculation. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -180,12 +235,21 @@ export default function Dashboard() {
                       {formatDate(session.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link
-                        to={`/results/${session.session_id}`}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                        View Results
-                      </Link>
+                      <div className="flex items-center space-x-4">
+                        <Link
+                          to={`/results/${session.session_id}`}
+                          className="text-primary-600 hover:text-primary-900"
+                        >
+                          View Results
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteClick(session)}
+                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                          title="Delete calculation"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -201,6 +265,16 @@ export default function Dashboard() {
         onClose={handleClosePreview}
         sessionId={previewModal.sessionId}
         filename={previewModal.filename}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleCloseDelete}
+        onConfirm={handleConfirmDelete}
+        sessionId={deleteModal.sessionId}
+        filename={deleteModal.filename}
+        isDeleting={isDeleting}
       />
     </div>
   );
