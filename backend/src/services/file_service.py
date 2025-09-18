@@ -1,6 +1,5 @@
-"""File storage service with SHA256 hashing for SALT rule workbooks."""
+"""File storage service for SALT rule workbooks."""
 
-import hashlib
 import logging
 import shutil
 from pathlib import Path
@@ -20,18 +19,14 @@ class FileStorageResult:
     def __init__(
         self,
         source_file: Optional[SourceFile],
-        is_duplicate: bool,
-        existing_source_file: Optional[SourceFile] = None,
         error_message: Optional[str] = None
     ):
         self.source_file = source_file
-        self.is_duplicate = is_duplicate
-        self.existing_source_file = existing_source_file
         self.error_message = error_message
 
 
 class FileService:
-    """Service for secure file storage and SHA256-based deduplication."""
+    """Service for secure file storage."""
 
     def __init__(self, db: Session, storage_root: Path = None):
         """Initialize file service with storage configuration."""
@@ -39,8 +34,8 @@ class FileService:
         self.storage_root = storage_root or Path("backend/data/uploads")
         self.storage_root.mkdir(parents=True, exist_ok=True)
 
-        # File size limit: 20MB
-        self.max_file_size = 20 * 1024 * 1024  # 20,971,520 bytes
+        # File size limit: 10MB for prototype
+        self.max_file_size = 10 * 1024 * 1024  # 10,485,760 bytes
 
         # Allowed content types
         self.allowed_content_types = {
@@ -58,7 +53,7 @@ class FileService:
         quarter: str
     ) -> FileStorageResult:
         """
-        Store uploaded file with SHA256 hashing and duplicate detection.
+        Store uploaded file, overriding any existing file.
 
         Args:
             file_path: Path to temporary uploaded file
@@ -77,7 +72,6 @@ class FileService:
             if file_size > self.max_file_size:
                 return FileStorageResult(
                     source_file=None,
-                    is_duplicate=False,
                     error_message=f"File size {file_size} exceeds maximum allowed size {self.max_file_size}"
                 )
 
@@ -85,28 +79,11 @@ class FileService:
             if content_type not in self.allowed_content_types:
                 return FileStorageResult(
                     source_file=None,
-                    is_duplicate=False,
                     error_message=f"Content type '{content_type}' not allowed"
                 )
 
-            # Calculate SHA256 hash
-            sha256_hash = self._calculate_file_hash(file_path)
-
-            # Check for duplicates
-            existing_file = self._find_existing_file_by_hash(
-                self.db, sha256_hash, year, quarter
-            )
-
-            if existing_file:
-                return FileStorageResult(
-                    source_file=None,
-                    is_duplicate=True,
-                    existing_source_file=existing_file,
-                    error_message=f"Duplicate file detected for {year} {quarter}"
-                )
-
-            # Generate secure storage path
-            secure_path = self._generate_secure_path(year, quarter, sha256_hash, original_filename)
+            # Generate storage path
+            secure_path = self._generate_storage_path(year, quarter, original_filename)
 
             # Copy file to secure storage
             secure_path.parent.mkdir(parents=True, exist_ok=True)
@@ -117,7 +94,6 @@ class FileService:
                 id=str(uuid4()),
                 filename=original_filename,
                 filepath=str(secure_path),
-                sha256_hash=sha256_hash,
                 file_size=file_size,
                 content_type=content_type,
                 upload_timestamp=datetime.now(),
@@ -131,68 +107,17 @@ class FileService:
             logger.info(f"File stored successfully: {original_filename} -> {secure_path}")
 
             return FileStorageResult(
-                source_file=source_file,
-                is_duplicate=False
+                source_file=source_file
             )
 
         except Exception as e:
             logger.error(f"Error storing file {original_filename}: {str(e)}")
             return FileStorageResult(
                 source_file=None,
-                is_duplicate=False,
                 error_message=f"Storage error: {str(e)}"
             )
 
-    def check_duplicate_file(self, file_path: Path, year: int, quarter: str) -> bool:
-        """
-        Check if file is a duplicate based on SHA256 hash.
 
-        Args:
-            file_path: Path to file to check
-            year: Tax year
-            quarter: Tax quarter
-
-        Returns:
-            True if duplicate exists, False otherwise
-        """
-        try:
-            sha256_hash = self._calculate_file_hash(file_path)
-            existing_file = self._find_existing_file_by_hash(self.db, sha256_hash, year, quarter)
-            return existing_file is not None
-
-        except Exception as e:
-            logger.error(f"Error checking duplicate: {str(e)}")
-            return False
-
-    def find_existing_rule_set_by_hash(
-        self, file_hash: str, year: int, quarter: str
-    ) -> Optional[Dict]:
-        """
-        Find existing rule set by file hash.
-
-        Args:
-            file_hash: SHA256 hash of the file
-            year: Tax year
-            quarter: Tax quarter
-
-        Returns:
-            Dictionary with rule set information or None
-        """
-        try:
-            source_file = self._find_existing_file_by_hash(self.db, file_hash, year, quarter)
-
-            if source_file and source_file.rule_set:
-                return {
-                    "id": str(source_file.rule_set.id),
-                    "filename": source_file.filename,
-                    "uploadedAt": source_file.upload_timestamp.isoformat() + "Z"
-                }
-
-            return None
-
-        except Exception as e:
-            logger.error(f"Error finding rule set by hash: {str(e)}")
-            return None
 
     def get_file_metadata(self, source_file_id: str) -> Optional[Dict]:
         """
@@ -212,7 +137,6 @@ class FileService:
                     "id": str(source_file.id),
                     "filename": source_file.filename,
                     "filepath": source_file.filepath,
-                    "sha256Hash": source_file.sha256_hash,
                     "fileSize": source_file.file_size,
                     "contentType": source_file.content_type,
                     "uploadTimestamp": source_file.upload_timestamp.isoformat() + "Z",
@@ -257,45 +181,18 @@ class FileService:
             logger.error(f"Error deleting file: {str(e)}")
             return False
 
-    def _calculate_file_hash(self, file_path: Path) -> str:
-        """Calculate SHA256 hash of file."""
-        sha256_hash = hashlib.sha256()
 
-        with open(file_path, "rb") as f:
-            # Read file in chunks to handle large files
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(chunk)
 
-        return sha256_hash.hexdigest()
-
-    def _find_existing_file_by_hash(
-        self, session: Session, file_hash: str, year: int, quarter: str
-    ) -> Optional[SourceFile]:
-        """Find existing file by SHA256 hash for the same year/quarter."""
-        return (
-            session.query(SourceFile)
-            .join(SourceFile.rule_set)
-            .filter(
-                SourceFile.sha256_hash == file_hash,
-                SourceFile.rule_set.has(year=year, quarter=quarter)
-            )
-            .first()
-        )
-
-    def _generate_secure_path(
-        self, year: int, quarter: str, file_hash: str, original_filename: str
+    def _generate_storage_path(
+        self, year: int, quarter: str, original_filename: str
     ) -> Path:
-        """Generate secure storage path for uploaded file."""
-        # Extract file extension
-        extension = Path(original_filename).suffix
-
-        # Create path: storage_root/year/quarter/hash[:8]/hash + extension
+        """Generate storage path for uploaded file."""
+        # Create path: storage_root/year/quarter/filename
         return (
             self.storage_root
             / str(year)
             / quarter.value.lower()
-            / file_hash[:8]
-            / f"{file_hash}{extension}"
+            / original_filename
         )
 
     def validate_file_format(self, file_path: Path) -> Tuple[bool, Optional[str]]:

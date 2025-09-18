@@ -8,7 +8,7 @@ from ..database.connection import Base
 
 
 class SourceFile(Base):
-    """SourceFile entity for tracking uploaded Excel workbooks with deduplication."""
+    """SourceFile entity for tracking uploaded Excel workbooks."""
 
     __tablename__ = "source_files"
 
@@ -18,7 +18,6 @@ class SourceFile(Base):
     # File metadata
     filename = Column(String(255), nullable=False)
     filepath = Column(String(500), nullable=False, unique=True)
-    sha256_hash = Column(String(64), nullable=False)
     file_size = Column(Integer, nullable=False)
     content_type = Column(String(100), nullable=False)
 
@@ -32,23 +31,17 @@ class SourceFile(Base):
     # Table constraints
     __table_args__ = (
         CheckConstraint(
-            "file_size > 0 AND file_size <= 20971520",
+            "file_size > 0 AND file_size <= 10485760",
             name="ck_source_file_size_valid"
         ),
         CheckConstraint(
-            "content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'",
+            "content_type IN ('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel.sheet.macroEnabled.12')",
             name="ck_source_file_content_type_excel"
         ),
         CheckConstraint(
             "length(filename) <= 255",
             name="ck_source_file_filename_length"
-        ),
-        CheckConstraint(
-            "length(sha256_hash) = 64",
-            name="ck_source_file_hash_length"
-        ),
-        # Note: Unique constraint for sha256_hash per year/quarter would be handled at application level
-        # as it requires joining with salt_rule_sets table
+        )
     )
 
     def __repr__(self) -> str:

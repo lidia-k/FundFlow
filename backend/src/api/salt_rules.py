@@ -55,12 +55,6 @@ class ErrorResponse(BaseModel):
     details: Optional[Dict[str, Any]] = None
 
 
-class ConflictResponse(BaseModel):
-    """Conflict response model for duplicates."""
-    error: str
-    message: str
-    existing_rule_set_id: str
-    duplicate_detection: Optional[Dict[str, Any]] = None
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=201)
@@ -108,11 +102,11 @@ async def upload_salt_rules(
             detail="File must be Excel format (.xlsx or .xlsm)"
         )
 
-    # Check file size (20MB limit)
-    if file.size and file.size > 20 * 1024 * 1024:
+    # Check file size (10MB limit for prototype)
+    if file.size and file.size > 10 * 1024 * 1024:
         raise HTTPException(
             status_code=413,
-            detail="File size exceeds 20MB limit"
+            detail="File size exceeds 10MB limit"
         )
 
     try:
@@ -139,24 +133,6 @@ async def upload_salt_rules(
                 raise HTTPException(
                     status_code=400,
                     detail=storage_result.error_message
-                )
-
-            if storage_result.is_duplicate:
-                existing_rule_set = file_service.find_existing_rule_set_by_hash(
-                    storage_result.existing_source_file.sha256_hash, year, quarter_enum
-                )
-
-                raise HTTPException(
-                    status_code=409,
-                    detail=ConflictResponse(
-                        error="DUPLICATE_FILE",
-                        message=f"Duplicate file detected for {year} {quarter_enum.value}",
-                        existing_rule_set_id=existing_rule_set["id"] if existing_rule_set else "",
-                        duplicate_detection={
-                            "sha256Hash": storage_result.existing_source_file.sha256_hash,
-                            "uploadedAt": storage_result.existing_source_file.upload_timestamp.isoformat() + "Z"
-                        }
-                    ).dict()
                 )
 
             # Create rule set
@@ -203,7 +179,6 @@ async def upload_salt_rules(
                 uploaded_file={
                     "filename": storage_result.source_file.filename,
                     "fileSize": storage_result.source_file.file_size,
-                    "sha256Hash": storage_result.source_file.sha256_hash,
                     "uploadTimestamp": storage_result.source_file.upload_timestamp.isoformat() + "Z"
                 },
                 validation_started=True,
