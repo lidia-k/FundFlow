@@ -49,17 +49,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">
-            Welcome to FundFlow SALT calculation platform
-          </p>
-        </div>
-        <Link to="/upload" className="btn-primary">
-          <CloudArrowUpIcon className="h-5 w-5 mr-2" />
-          New Calculation
-        </Link>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-2 text-gray-600">
+          Welcome to FundFlow SALT calculation platform
+        </p>
       </div>
 
       {/* Quick Actions */}

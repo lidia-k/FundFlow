@@ -11,7 +11,6 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: ChartBarIcon },
-    { name: 'Upload', href: '/upload', icon: CloudArrowUpIcon },
     { name: 'SALT Rules', href: '/salt-rules', icon: CogIcon },
   ];
 
