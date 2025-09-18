@@ -12,7 +12,7 @@ from ..services.session_service import SessionService
 from ..services.excel_service import ExcelService
 from ..services.investor_service import InvestorService
 from ..services.distribution_service import DistributionService
-from ..services.validation_service import ValidationService
+from ..services.upload_validation_service import UploadValidationService
 from ..models.user_session import UploadStatus
 
 router = APIRouter()
@@ -49,7 +49,7 @@ async def upload_file(
         excel_service = ExcelService()
         investor_service = InvestorService(db)
         distribution_service = DistributionService(db)
-        validation_service = ValidationService(db)
+        validation_service = UploadValidationService(db)
 
         # Get or create default user
         user = user_service.get_or_create_default_user()
