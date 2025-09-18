@@ -26,6 +26,7 @@ class InvestorEntityType(Enum):
     JOINT_TENANCY_TENANCY_IN_COMMON = ("Joint Tenancy / Tenancy in Common", "Individual")
     GOVERNMENT_BENEFIT_PLAN = ("Government Benefit Plan", "Exempt Org")
     IRA_KEOGH = ("IRA/Keogh", "IRA")
+    IRA = ("IRA", "IRA")
     EXEMPT_ORGANIZATION_BENEFIT = ("Exempt Organization_Benefit", "Exempt Org")
     LLP = ("LLP", "Partnership")
     BENEFIT_PLAN_INVESTOR_ERISA_TITLE_I = ("Benefit Plan Investor [ERISA Title I Plan]", "Exempt Org")

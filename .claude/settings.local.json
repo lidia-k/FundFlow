@@ -14,7 +14,13 @@
       "Bash(sqlite3:*)",
       "Bash(docker-compose up:*)",
       "Bash(curl:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "mcp__serena__check_onboarding_performed",
+      "Bash(docker-compose:*)",
+      "Bash(touch:*)",
+      "Bash(rm:*)",
+      "Bash(python:*)",
+      "mcp__serena__replace_symbol_body"
     ],
     "deny": [],
     "ask": []

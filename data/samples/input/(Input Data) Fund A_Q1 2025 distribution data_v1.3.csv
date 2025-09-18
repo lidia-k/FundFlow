@@ -1,4 +1,4 @@
-﻿Investor Name,Investor Entity Type,Investor Tax State,Percentage,Distribution TX,Distribution NM,Distribution CO,NM Withholding Exemption,NM Composite Exemption,CO CompositeExemption,CO Withholding Exemption,,,,,,,,,,,,,,
+﻿Investor Name,Investor Entity Type,Investor Tax State,Commitment Percentage,Distribution TX,Distribution NM,Distribution CO,NM Withholding Exemption,NM Composite Exemption,CO CompositeExemption,CO Withholding Exemption,,,,,,,,,,,,,,
 Name 1,LLC_Taxed as Partnership,TX,10%," 971,900 "," 28,100 "," 500,000 ",,,,,,,,,,,,,,,,,,
 Name 2,Corporation,NM,5%," 485,950 "," 14,050 "," 250,000 ",,,,,,,,,,,,,,,,,,
 Name 3,Exempt Organization,CA,10%," 971,900 "," 28,100 "," 500,000 ",,,,,,,,,,,,,,,,,,

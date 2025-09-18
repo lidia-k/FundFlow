@@ -13,11 +13,9 @@ interface PreviewData {
   investor_name: string;
   entity_type: string;
   tax_state: string;
-  tx_amount: number;
-  nm_amount: number;
-  co_amount: number;
-  composite_exemption: string;
-  withholding_exemption: string;
+  distributions: Record<string, number>;
+  composite_exemptions: Record<string, string>;
+  withholding_exemptions: Record<string, string>;
   fund_code: string;
   period: string;
 }
@@ -33,6 +31,10 @@ interface PreviewResponse {
     file_format: string;
   };
   preview_data: PreviewData[];
+  available_states: {
+    distributions: string[];
+    exemptions: string[];
+  };
   total_rows: number;
   valid_rows: number;
   preview_limit: number;
@@ -151,6 +153,7 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
+                        {/* Fixed columns */}
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Investor Name
                         </th>
@@ -160,26 +163,31 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Tax State
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          TX Amount
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          NM Amount
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          CO Amount
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Composite Exemption
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Withholding Exemption
-                        </th>
+
+                        {/* Dynamic distribution columns */}
+                        {previewData.available_states.distributions.map((state) => (
+                          <th key={`dist-${state}`} className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {state} Amount
+                          </th>
+                        ))}
+
+                        {/* Dynamic exemption columns */}
+                        {previewData.available_states.exemptions.map((state) => (
+                          <React.Fragment key={`exempt-${state}`}>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {state} Composite
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {state} Withholding
+                            </th>
+                          </React.Fragment>
+                        ))}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {previewData.preview_data.map((row, index) => (
                         <tr key={index} className="hover:bg-gray-50">
+                          {/* Fixed columns */}
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">
                             {row.investor_name}
                           </td>
@@ -189,33 +197,37 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                           <td className="px-4 py-3 text-sm text-gray-500">
                             {row.tax_state}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
-                            {formatAmount(row.tx_amount)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
-                            {formatAmount(row.nm_amount)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
-                            {formatAmount(row.co_amount)}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              row.composite_exemption === 'Yes'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {row.composite_exemption}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              row.withholding_exemption === 'Yes'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {row.withholding_exemption}
-                            </span>
-                          </td>
+
+                          {/* Dynamic distribution amounts */}
+                          {previewData.available_states.distributions.map((state) => (
+                            <td key={`dist-${state}`} className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
+                              {formatAmount(row.distributions[state] || 0)}
+                            </td>
+                          ))}
+
+                          {/* Dynamic exemptions */}
+                          {previewData.available_states.exemptions.map((state) => (
+                            <React.Fragment key={`exempt-${state}`}>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                  row.composite_exemptions[state] === 'Yes'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {row.composite_exemptions[state] || 'No'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                  row.withholding_exemptions[state] === 'Yes'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {row.withholding_exemptions[state] || 'No'}
+                                </span>
+                              </td>
+                            </React.Fragment>
+                          ))}
                         </tr>
                       ))}
                     </tbody>

@@ -206,21 +206,51 @@ async def get_file_preview(
         # Limit the preview data
         limited_data = parsing_result.data[:limit]
 
+        # Get all unique states from distributions for dynamic column headers
+        all_distribution_states = set()
+        all_exemption_states = set()
+        for row in limited_data:
+            distributions = row.get('distributions', {})
+            withholding_exemptions = row.get('withholding_exemptions', {})
+            composite_exemptions = row.get('composite_exemptions', {})
+
+            all_distribution_states.update(distributions.keys())
+            all_exemption_states.update(withholding_exemptions.keys())
+            all_exemption_states.update(composite_exemptions.keys())
+
+        # Sort states for consistent ordering
+        sorted_distribution_states = sorted(all_distribution_states)
+        sorted_exemption_states = sorted(all_exemption_states)
+
         # Format the raw data for display
         preview_data = []
         for row in limited_data:
-            preview_data.append({
+            row_data = {
                 "investor_name": row.get('investor_name', ''),
                 "entity_type": row.get('investor_entity_type', ''),
                 "tax_state": row.get('investor_tax_state', ''),
-                "tx_amount": row.get('tx_amount', 0),
-                "nm_amount": row.get('nm_amount', 0),
-                "co_amount": row.get('co_amount', 0),
-                "composite_exemption": "Yes" if row.get('composite_exemption', False) else "No",
-                "withholding_exemption": "Yes" if row.get('withholding_exemption', False) else "No",
                 "fund_code": parsing_result.fund_info.get('fund_code', ''),
                 "period": f"{parsing_result.fund_info.get('period_quarter', '')} {parsing_result.fund_info.get('period_year', '')}"
-            })
+            }
+
+            # Add distribution amounts dynamically by state
+            distributions = row.get('distributions', {})
+            row_data["distributions"] = {}
+            for state in sorted_distribution_states:
+                row_data["distributions"][state] = float(distributions.get(state, 0))
+
+            # Add exemption data dynamically by state
+            withholding_exemptions = row.get('withholding_exemptions', {})
+            composite_exemptions = row.get('composite_exemptions', {})
+
+            row_data["withholding_exemptions"] = {}
+            row_data["composite_exemptions"] = {}
+
+            for state in sorted_exemption_states:
+                row_data["withholding_exemptions"][state] = "Yes" if withholding_exemptions.get(state, False) else "No"
+                row_data["composite_exemptions"][state] = "Yes" if composite_exemptions.get(state, False) else "No"
+
+            preview_data.append(row_data)
 
         return {
             "session_id": session_id,
@@ -233,6 +263,10 @@ async def get_file_preview(
                 "file_format": parsing_result.fund_info.get('file_format', 'v1.3')
             },
             "preview_data": preview_data,
+            "available_states": {
+                "distributions": sorted_distribution_states,
+                "exemptions": sorted_exemption_states
+            },
             "total_rows": parsing_result.total_rows,
             "valid_rows": parsing_result.valid_rows,
             "preview_limit": limit,
