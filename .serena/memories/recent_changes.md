@@ -1,22 +1,45 @@
-# Recent Changes to FundFlow
+# Recent FundFlow Changes
 
-## File Validation and Preview Enhancement (Latest)
+## Latest Changes (2025-09-19)
+**feat(salt-rules): implement auto-detection and UI improvements**
 
 ### Key Improvements
-- **Immediate Upload Validation**: Files are now validated before any database entries are created, preventing corruption from invalid data
-- **File Preview Modal**: Users can click on filenames in the Dashboard to preview raw Excel content before processing
-- **Enhanced Error Handling**: Detailed validation error messages with row-specific feedback during upload
-- **New API Endpoints**: 
-  - `/results/{session_id}/file-preview` - Preview raw uploaded Excel content
-  - `/results/{session_id}/preview` - Preview processed calculation results
+- **Auto-Detection**: Upload endpoint now automatically detects year/quarter from current date
+- **Simplified API**: Removed manual year/quarter form parameters from upload process
+- **Database Fixes**: Fixed constraint violations by updating row_number validation
+- **UI Enhancements**: Updated dashboard to use correct status values (draft/active/archived)
+- **Better Error Handling**: Improved error messages and display in frontend dashboard
 
 ### Technical Changes
-- Backend: Enhanced upload.py with early validation, new results.py endpoints
-- Frontend: FilePreviewModal component, improved Dashboard interaction, better error display
-- Configuration: Updated Claude settings for additional development tools access
+- Backend: Enhanced upload API, fixed validation service constraints, improved file service enum handling
+- Frontend: Updated dashboard status mapping, improved error display, corrected type definitions
+- Testing: Added comprehensive SALT matrix test files and integration tests
 
 ### User Experience Impact
-- Faster feedback on file validation errors
-- Ability to inspect uploaded files before processing
-- Clearer error messages with specific row and column information
-- Prevents incomplete/corrupted sessions from being created
+- Streamlined upload process with automatic date detection
+- More accurate status displays in dashboard
+- Better error feedback during operations
+
+## Previous Commit: dc92cb8 (2025-09-19)
+**feat(core): implement session deletion and file upload improvements**
+
+### Backend Changes
+- Removed file hash deduplication system from upload workflow
+- Added session deletion API endpoint (`DELETE /sessions/{session_id}`) with cascade delete
+- Enhanced Excel service with improved composite exemption column detection
+- Removed redundant file-preview endpoint from results API
+- Updated session service to handle session deletion with related data cleanup
+
+### Frontend Changes  
+- Added DeleteConfirmationModal component for session management
+- Updated API client with session delete capability
+- Improved dashboard session handling
+
+### Data Updates
+- Added new sample data file in v1.3 Excel format for testing
+- Updated CSV sample data format
+
+### Development Tools
+- Added MCP tool configurations (codex-cli, bash source commands)
+
+The branch is now ahead of origin by 1 commit and ready for push if needed.

@@ -456,7 +456,7 @@ class ExcelProcessor:
             self.validation_issues.append(ValidationIssue(
                 rule_set_id=self.rule_set_id,
                 sheet_name="FILE",
-                row_number=0,
+                row_number=1,  # Changed from 0 to 1 to satisfy constraint
                 error_code="PROCESSING_FAILED",
                 severity=IssueSeverity.ERROR,
                 message=f"Excel file processing failed: {str(e)}",

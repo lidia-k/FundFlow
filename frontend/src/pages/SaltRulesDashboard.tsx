@@ -21,7 +21,23 @@ export default function SaltRulesDashboard() {
       setRuleSets(response.items);
     } catch (error) {
       console.error('Failed to load rule sets:', error);
-      setError('Failed to load rule sets. Please try again.');
+
+      // Extract detailed error message from backend response
+      let errorMessage = 'Failed to load rule sets. Please try again.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        const errorObj = error as any;
+        if (errorObj.response?.data?.detail) {
+          errorMessage = errorObj.response.data.detail;
+        } else if (errorObj.response?.data?.message) {
+          errorMessage = errorObj.response.data.message;
+        } else if (errorObj.message) {
+          errorMessage = errorObj.message;
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -39,14 +55,12 @@ export default function SaltRulesDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'published':
+      case 'active':
         return 'text-green-600 bg-green-100';
-      case 'validated':
-        return 'text-blue-600 bg-blue-100';
-      case 'uploaded':
+      case 'draft':
         return 'text-yellow-600 bg-yellow-100';
-      case 'failed':
-        return 'text-red-600 bg-red-100';
+      case 'archived':
+        return 'text-gray-600 bg-gray-100';
       default:
         return 'text-gray-600 bg-gray-100';
     }
@@ -54,14 +68,12 @@ export default function SaltRulesDashboard() {
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
-      case 'uploaded':
-        return 'Uploaded';
-      case 'validated':
-        return 'Validated';
-      case 'published':
-        return 'Published';
-      case 'failed':
-        return 'Failed';
+      case 'draft':
+        return 'Draft';
+      case 'active':
+        return 'Active';
+      case 'archived':
+        return 'Archived';
       default:
         return status;
     }
@@ -101,7 +113,7 @@ export default function SaltRulesDashboard() {
             <div className="ml-4">
               <h3 className="text-lg font-medium text-gray-900">Published</h3>
               <p className="text-sm text-gray-500">
-                {ruleSets.filter(rs => rs.status === 'published').length} active
+                {ruleSets.filter(rs => rs.status === 'active').length} active
               </p>
             </div>
           </div>
@@ -113,7 +125,7 @@ export default function SaltRulesDashboard() {
             <div className="ml-4">
               <h3 className="text-lg font-medium text-gray-900">Pending</h3>
               <p className="text-sm text-gray-500">
-                {ruleSets.filter(rs => rs.status !== 'published').length} waiting
+                {ruleSets.filter(rs => rs.status !== 'active').length} waiting
               </p>
             </div>
           </div>
@@ -159,7 +171,7 @@ export default function SaltRulesDashboard() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    File
+                    Rule Set
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -168,7 +180,7 @@ export default function SaltRulesDashboard() {
                     Rules Count
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Uploaded
+                    Created
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -177,13 +189,13 @@ export default function SaltRulesDashboard() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {ruleSets.slice(0, 10).map((ruleSet) => (
-                  <tr key={ruleSet.ruleSetId} className="hover:bg-gray-50">
+                  <tr key={ruleSet.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {ruleSet.filename}
+                        {ruleSet.year} {ruleSet.quarter} v{ruleSet.version}
                       </div>
                       <div className="text-sm text-gray-500">
-                        ID: {ruleSet.ruleSetId.slice(0, 8)}...
+                        ID: {ruleSet.id.slice(0, 8)}...
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -200,11 +212,11 @@ export default function SaltRulesDashboard() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(ruleSet.uploadedAt)}
+                      {formatDate(ruleSet.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <Link
-                        to={`/salt-rules/${ruleSet.ruleSetId}`}
+                        to={`/salt-rules/${ruleSet.id}`}
                         className="text-primary-600 hover:text-primary-900"
                       >
                         View Details

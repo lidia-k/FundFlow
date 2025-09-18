@@ -66,8 +66,6 @@ class ConflictResponse(BaseModel):
 @router.post("/upload", response_model=UploadResponse, status_code=201)
 async def upload_salt_rules(
     file: UploadFile = File(...),
-    year: int = Form(...),
-    quarter: str = Form(...),
     description: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ) -> UploadResponse:
@@ -76,20 +74,20 @@ async def upload_salt_rules(
 
     Creates a draft rule set and initiates validation pipeline.
     """
-    # Validate parameters
-    if year < 2020 or year > 2030:
-        raise HTTPException(
-            status_code=400,
-            detail="Year must be between 2020 and 2030"
-        )
+    # Auto-detect current year and quarter
+    current_date = datetime.now()
+    year = current_date.year
 
-    try:
-        quarter_enum = Quarter(quarter)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Quarter must be one of: Q1, Q2, Q3, Q4"
-        )
+    # Determine quarter based on current month
+    month = current_date.month
+    if month <= 3:
+        quarter_enum = Quarter.Q1
+    elif month <= 6:
+        quarter_enum = Quarter.Q2
+    elif month <= 9:
+        quarter_enum = Quarter.Q3
+    else:
+        quarter_enum = Quarter.Q4
 
     if description and len(description) > 500:
         raise HTTPException(
@@ -134,7 +132,7 @@ async def upload_salt_rules(
                 temp_file_path, file.filename, file.content_type or
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "admin@fundflow.com",  # TODO: Get from auth
-                year, quarter
+                year, quarter_enum
             )
 
             if storage_result.error_message:
@@ -145,14 +143,14 @@ async def upload_salt_rules(
 
             if storage_result.is_duplicate:
                 existing_rule_set = file_service.find_existing_rule_set_by_hash(
-                    storage_result.existing_source_file.sha256_hash, year, quarter
+                    storage_result.existing_source_file.sha256_hash, year, quarter_enum
                 )
 
                 raise HTTPException(
                     status_code=409,
                     detail=ConflictResponse(
                         error="DUPLICATE_FILE",
-                        message=f"Duplicate file detected for {year} {quarter}",
+                        message=f"Duplicate file detected for {year} {quarter_enum.value}",
                         existing_rule_set_id=existing_rule_set["id"] if existing_rule_set else "",
                         duplicate_detection={
                             "sha256Hash": storage_result.existing_source_file.sha256_hash,

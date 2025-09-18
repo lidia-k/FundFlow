@@ -120,7 +120,7 @@ class ValidationService:
             issues.append(ValidationIssue(
                 rule_set_id=rule_set.id,
                 sheet_name="METADATA",
-                row_number=0,
+                row_number=1,  # Changed from 0 to 1 to satisfy constraint
                 error_code="INVALID_STATUS",
                 severity=IssueSeverity.ERROR,
                 message=f"Rule set status '{rule_set.status.value}' is not valid for processing",
@@ -132,7 +132,7 @@ class ValidationService:
             issues.append(ValidationIssue(
                 rule_set_id=rule_set.id,
                 sheet_name="METADATA",
-                row_number=0,
+                row_number=1,  # Changed from 0 to 1 to satisfy constraint
                 error_code="INVALID_YEAR",
                 severity=IssueSeverity.ERROR,
                 message=f"Year {rule_set.year} is outside valid range (2020-2030)",
@@ -144,7 +144,7 @@ class ValidationService:
             issues.append(ValidationIssue(
                 rule_set_id=rule_set.id,
                 sheet_name="METADATA",
-                row_number=0,
+                row_number=1,  # Changed from 0 to 1 to satisfy constraint
                 error_code="MISSING_SOURCE_FILE",
                 severity=IssueSeverity.ERROR,
                 message="Rule set has no associated source file",

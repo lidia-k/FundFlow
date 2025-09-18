@@ -293,7 +293,7 @@ class FileService:
         return (
             self.storage_root
             / str(year)
-            / quarter.lower()
+            / quarter.value.lower()
             / file_hash[:8]
             / f"{file_hash}{extension}"
         )

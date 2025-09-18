@@ -1,23 +1,18 @@
 export interface RuleSet {
-  ruleSetId: string;
+  id: string;
   status: RuleSetStatus;
-  filename: string;
-  fileSize: number;
-  sha256Hash: string;
-  uploadedAt: string;
+  version: string;
+  quarter: string;
+  year: number;
+  effectiveDate: string;
+  createdAt: string;
   publishedAt?: string;
   ruleCountWithholding: number;
   ruleCountComposite: number;
-  version?: string;
-  quarter?: string;
-  year?: number;
-  effectiveDate?: string;
   description?: string;
-  archivedPrevious?: boolean;
-  resolvedRulesGenerated?: boolean;
 }
 
-export type RuleSetStatus = 'uploaded' | 'validated' | 'published' | 'failed';
+export type RuleSetStatus = 'draft' | 'active' | 'archived';
 
 export interface ValidationIssue {
   id: string;
