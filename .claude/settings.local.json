@@ -11,6 +11,7 @@
       "mcp__serena__get_symbols_overview",
       "mcp__serena__find_symbol",
       "mcp__serena__find_file",
+      "mcp__serena__replace_symbol_body",
       "Bash(sqlite3:*)",
       "Bash(docker-compose up:*)",
       "Bash(curl:*)",
@@ -29,6 +30,9 @@
       "Bash(npx tsc:*)",
       "Bash(uv add:*)",
       "Bash(uv run vulture:*)"
+      "Bash(git restore:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []

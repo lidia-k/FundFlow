@@ -37,24 +37,24 @@
 ## Phase 3.2: Tests First (OPTIONAL FOR PROTOTYPE - Priority 2)
 **NOTE: For rapid prototyping, skip comprehensive testing initially. Add after MVP is working.**
 
+### Unit Tests (Business Logic Validation) - **SKIP FOR MVP**
+- [ ] T007 [P] Unit test Excel parsing validation in backend/tests/unit/test_excel_parser.py
+- [ ] T008 [P] Unit test investor entity validation in backend/tests/unit/test_investor_validation.py
+- [ ] T009 [P] Unit test distribution calculation in backend/tests/unit/test_distribution_calculation.py
+- [ ] T010 [P] Unit test exemption field conversion in backend/tests/unit/test_exemption_conversion.py
+
 ### Contract Tests (API Endpoint Validation) - **SKIP FOR MVP**
-- [ ] T007 [P] Contract test POST /api/upload in backend/tests/contract/test_upload_post.py
-- [ ] T008 [P] Contract test GET /api/results/{session_id} in backend/tests/contract/test_results_get.py
-- [ ] T009 [P] Contract test GET /api/results/{session_id}/download in backend/tests/contract/test_download_get.py
-- [ ] T010 [P] Contract test GET /api/template in backend/tests/contract/test_template_get.py
-- [ ] T011 [P] Contract test GET /api/health in backend/tests/contract/test_health_get.py
+- [ ] T011 [P] Contract test POST /api/upload in backend/tests/contract/test_upload_post.py
+- [ ] T012 [P] Contract test GET /api/results/{session_id} in backend/tests/contract/test_results_get.py
+- [ ] T013 [P] Contract test GET /api/results/{session_id}/download in backend/tests/contract/test_download_get.py
+- [ ] T014 [P] Contract test GET /api/template in backend/tests/contract/test_template_get.py
+- [ ] T015 [P] Contract test GET /api/health in backend/tests/contract/test_health_get.py
 
 ### Integration Tests (Complete Workflows) - **SKIP FOR MVP**
-- [ ] T012 [P] Integration test Excel upload to database flow in backend/tests/integration/test_upload_workflow.py
-- [ ] T013 [P] Integration test investor persistence across sessions in backend/tests/integration/test_investor_persistence.py
-- [ ] T014 [P] Integration test exemption field processing in backend/tests/integration/test_exemption_processing.py
-- [ ] T015 [P] Integration test validation error collection in backend/tests/integration/test_validation_errors.py
-
-### Unit Tests (Business Logic Validation) - **SKIP FOR MVP**
-- [ ] T016 [P] Unit test Excel parsing validation in backend/tests/unit/test_excel_parser.py
-- [ ] T017 [P] Unit test investor entity validation in backend/tests/unit/test_investor_validation.py
-- [ ] T018 [P] Unit test distribution calculation in backend/tests/unit/test_distribution_calculation.py
-- [ ] T019 [P] Unit test exemption field conversion in backend/tests/unit/test_exemption_conversion.py
+- [ ] T016 [P] Integration test Excel upload to database flow in backend/tests/integration/test_upload_workflow.py
+- [ ] T017 [P] Integration test investor persistence across sessions in backend/tests/integration/test_investor_persistence.py
+- [ ] T018 [P] Integration test exemption field processing in backend/tests/integration/test_exemption_processing.py
+- [ ] T019 [P] Integration test validation error collection in backend/tests/integration/test_validation_errors.py
 
 ## Phase 3.3: Database Models (Priority 1 - Core MVP)
 
@@ -108,9 +108,9 @@
 - Frontend components T036-T039 can run together (different files)
 
 ### Testing Parallelization (Priority 2)
-- Contract tests T007-T011 can run together (different files)
-- Integration tests T012-T015 can run together (different files)
-- Unit tests T016-T019 can run together (different files)
+- Unit tests T007-T010 can run together (different files)
+- Contract tests T011-T015 can run together (different files)
+- Integration tests T016-T019 can run together (different files)
 
 ## Parallel Execution Examples
 
@@ -135,7 +135,13 @@ Task: "Error handling component in frontend/src/components/ErrorDisplay.tsx"
 
 ### Testing Phase (Priority 2 - Optional):
 ```bash
-# Launch T007-T011 together when adding comprehensive testing:
+# Launch T007-T010 together when adding unit testing:
+Task: "Unit test Excel parsing validation in backend/tests/unit/test_excel_parser.py"
+Task: "Unit test investor entity validation in backend/tests/unit/test_investor_validation.py"
+Task: "Unit test distribution calculation in backend/tests/unit/test_distribution_calculation.py"
+Task: "Unit test exemption field conversion in backend/tests/unit/test_exemption_conversion.py"
+
+# Launch T011-T015 together when adding contract testing:
 Task: "Contract test POST /api/upload in backend/tests/contract/test_upload_post.py"
 Task: "Contract test GET /api/results/{session_id} in backend/tests/contract/test_results_get.py"
 Task: "Contract test GET /api/results/{session_id}/download in backend/tests/contract/test_download_get.py"
@@ -172,7 +178,7 @@ Task: "Contract test GET /api/health in backend/tests/contract/test_health_get.p
 ## Validation Checklist
 *GATE: Checked before task execution*
 
-- [x] All contracts have corresponding tests (T007-T011)
+- [ ] All contracts have corresponding tests (T011-T015)
 - [x] All entities have model tasks (T020-T024)
 - [x] MVP tasks prioritized (T020-T040) before comprehensive testing (T007-T019)
 - [x] Parallel tasks truly independent (different files marked [P])
