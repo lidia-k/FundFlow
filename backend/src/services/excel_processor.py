@@ -45,14 +45,23 @@ class ExcelProcessor:
     # Required sheets in the workbook
     REQUIRED_SHEETS = ["Withholding", "Composite"]
 
-    # Required columns for each sheet
-    WITHHOLDING_COLUMNS = [
-        "State", "EntityType", "TaxRate", "IncomeThreshold", "TaxThreshold"
-    ]
+    # Required base columns for each sheet
+    WITHHOLDING_BASE_COLUMNS = ["State", "State Abbrev"]
+    COMPOSITE_BASE_COLUMNS = ["State", "State Abbrev"]
 
-    COMPOSITE_COLUMNS = [
-        "State", "EntityType", "TaxRate", "IncomeThreshold", "MandatoryFiling"
-    ]
+    # Column prefixes for entity types and special columns
+    WITHHOLDING_ENTITY_PREFIX = "NONRESIDENT / CORPORATE WITHHOLDING_"
+    COMPOSITE_ENTITY_PREFIX = "Composite Rates_"
+
+    # Special columns to extract (constructed from prefixes)
+    WITHHOLDING_INCOME_THRESHOLD_COL = WITHHOLDING_ENTITY_PREFIX + "Per Partner Income Threshold"
+    WITHHOLDING_TAX_THRESHOLD_COL = WITHHOLDING_ENTITY_PREFIX + "Per Partner W/H Tax Threshold"
+    COMPOSITE_INCOME_THRESHOLD_COL = COMPOSITE_ENTITY_PREFIX + "Income Threshold"
+    COMPOSITE_MANDATORY_FILING_COL = COMPOSITE_ENTITY_PREFIX + "Mandatory Composite"
+
+    # Columns to ignore (constructed from prefixes)
+    WITHHOLDING_IGNORED_COL = WITHHOLDING_ENTITY_PREFIX + "Aggregate Income Threshold"
+    COMPOSITE_IGNORED_COL = COMPOSITE_ENTITY_PREFIX + "Inclusion in the composite exempts the partner from withholding"
 
     # Valid state codes (from USJurisdiction enum)
     VALID_STATE_CODES = {state.value for state in USJurisdiction}
@@ -63,6 +72,49 @@ class ExcelProcessor:
     def __init__(self):
         self.validation_issues: List[ValidationIssue] = []
         self.rule_set_id: Optional[str] = None
+
+    def get_entity_type_columns(self, sheet_name: str, df: pd.DataFrame) -> Dict[str, str]:
+        """Extract entity type columns and map them to coding values.
+
+        Returns:
+            Dict mapping column names to entity type coding values
+        """
+        entity_columns = {}
+
+        if sheet_name == "Withholding":
+            prefix = self.WITHHOLDING_ENTITY_PREFIX
+            special_cols = [self.WITHHOLDING_INCOME_THRESHOLD_COL, self.WITHHOLDING_TAX_THRESHOLD_COL, self.WITHHOLDING_IGNORED_COL]
+        elif sheet_name == "Composite":
+            prefix = self.COMPOSITE_ENTITY_PREFIX
+            special_cols = [self.COMPOSITE_INCOME_THRESHOLD_COL, self.COMPOSITE_MANDATORY_FILING_COL, self.COMPOSITE_IGNORED_COL]
+        else:
+            return entity_columns
+
+        # Find columns with the entity prefix
+        for col in df.columns:
+            if col.startswith(prefix):
+                if col in special_cols:
+                    continue
+
+                # Extract entity type from column name
+                entity_display = col[len(prefix):]
+
+                # Map to entity type coding value
+                try:
+                    # Find matching entity type by display value or coding value
+                    for entity_type in InvestorEntityType:
+                        if entity_type.coding == entity_display:
+                            entity_columns[col] = entity_type.coding
+                            break
+                    else:
+                        # If no exact match, try to find by coding value directly
+                        if entity_display in self.VALID_ENTITY_TYPES:
+                            entity_columns[col] = entity_display
+                except Exception:
+                    # Skip invalid entity types
+                    continue
+
+        return entity_columns
 
     def load_excel_file(self, file_path: Union[str, Path]) -> Dict[str, pd.DataFrame]:
         """Load Excel file and return dataframes for each sheet."""
@@ -82,12 +134,8 @@ class ExcelProcessor:
             # Clean up dataframes - remove empty rows
             for sheet_name, df in dataframes.items():
                 if sheet_name in self.REQUIRED_SHEETS:
-                    # Remove rows where all key columns are NaN
-                    if sheet_name == "Withholding":
-                        df = df.dropna(subset=["State", "EntityType"], how='all')
-                    elif sheet_name == "Composite":
-                        df = df.dropna(subset=["State", "EntityType"], how='all')
-
+                    # Remove rows where State and State Abbrev are both NaN
+                    df = df.dropna(subset=["State", "State Abbrev"], how='all')
                     dataframes[sheet_name] = df
 
             logger.info(f"Successfully loaded Excel file with {len(dataframes)} sheets")
@@ -98,27 +146,57 @@ class ExcelProcessor:
             raise
 
     def validate_sheet_structure(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
-        """Validate that sheet has required columns."""
+        """Validate that sheet has required base columns and expected entity type columns."""
         issues = []
 
         if sheet_name == "Withholding":
-            required_columns = self.WITHHOLDING_COLUMNS
+            required_base_columns = self.WITHHOLDING_BASE_COLUMNS
+            expected_special_columns = [self.WITHHOLDING_INCOME_THRESHOLD_COL, self.WITHHOLDING_TAX_THRESHOLD_COL]
         elif sheet_name == "Composite":
-            required_columns = self.COMPOSITE_COLUMNS
+            required_base_columns = self.COMPOSITE_BASE_COLUMNS
+            expected_special_columns = [self.COMPOSITE_INCOME_THRESHOLD_COL, self.COMPOSITE_MANDATORY_FILING_COL]
         else:
             return issues  # Skip validation for non-required sheets
 
-        # Check for missing columns
-        missing_columns = set(required_columns) - set(df.columns)
-        for column in missing_columns:
+        # Check for missing base columns
+        missing_base_columns = set(required_base_columns) - set(df.columns)
+        for column in missing_base_columns:
             issues.append(ValidationIssue(
                 rule_set_id=self.rule_set_id,
                 sheet_name=sheet_name,
                 row_number=1,  # Header row
                 column_name=column,
-                error_code="MISSING_COLUMN",
+                error_code="MISSING_BASE_COLUMN",
                 severity=IssueSeverity.ERROR,
-                message=f"Required column '{column}' is missing from {sheet_name} sheet",
+                message=f"Required base column '{column}' is missing from {sheet_name} sheet",
+                field_value=None
+            ))
+
+        # Check for missing special columns
+        missing_special_columns = set(expected_special_columns) - set(df.columns)
+        for column in missing_special_columns:
+            issues.append(ValidationIssue(
+                rule_set_id=self.rule_set_id,
+                sheet_name=sheet_name,
+                row_number=1,  # Header row
+                column_name=column,
+                error_code="MISSING_SPECIAL_COLUMN",
+                severity=IssueSeverity.ERROR,
+                message=f"Required special column '{column}' is missing from {sheet_name} sheet",
+                field_value=None
+            ))
+
+        # Check for entity type columns
+        entity_columns = self.get_entity_type_columns(sheet_name, df)
+        if not entity_columns:
+            issues.append(ValidationIssue(
+                rule_set_id=self.rule_set_id,
+                sheet_name=sheet_name,
+                row_number=1,  # Header row
+                column_name="Entity Type Columns",
+                error_code="NO_ENTITY_COLUMNS",
+                severity=IssueSeverity.ERROR,
+                message=f"No valid entity type columns found in {sheet_name} sheet",
                 field_value=None
             ))
 
@@ -205,13 +283,13 @@ class ExcelProcessor:
         return issues
 
     def validate_state_codes(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
-        """Validate state codes against USJurisdiction enum."""
+        """Validate state abbreviations against USJurisdiction enum."""
         issues = []
 
-        if "State" not in df.columns:
+        if "State Abbrev" not in df.columns:
             return issues
 
-        for idx, state_code in df["State"].items():
+        for idx, state_code in df["State Abbrev"].items():
             if pd.isna(state_code):
                 continue
 
@@ -221,10 +299,10 @@ class ExcelProcessor:
                     rule_set_id=self.rule_set_id,
                     sheet_name=sheet_name,
                     row_number=idx + 2,
-                    column_name="State",
-                    error_code="INVALID_STATE",
+                    column_name="State Abbrev",
+                    error_code="INVALID_STATE_ABBREV",
                     severity=IssueSeverity.ERROR,
-                    message=f"Invalid state code '{state_str}'. Must be valid US state abbreviation.",
+                    message=f"Invalid state abbreviation '{state_str}'. Must be valid US state abbreviation.",
                     field_value=state_str
                 ))
 
@@ -257,32 +335,42 @@ class ExcelProcessor:
         return issues
 
     def validate_rate_ranges(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
-        """Validate tax rate ranges (0.0000 to 1.0000)."""
+        """Validate tax rate ranges (0.0000 to 1.0000) in entity type columns."""
         issues = []
 
-        if "TaxRate" not in df.columns:
-            return issues
+        # Get entity type columns for this sheet
+        entity_columns = self.get_entity_type_columns(sheet_name, df)
 
-        for idx, rate in df["TaxRate"].items():
-            if pd.isna(rate):
-                continue
+        # Validate rates in each entity type column
+        for col_name, entity_coding in entity_columns.items():
+            for idx, rate in df[col_name].items():
+                if pd.isna(rate):
+                    continue
 
-            try:
-                rate_decimal = Decimal(str(rate))
-                if rate_decimal < Decimal('0.0000') or rate_decimal > Decimal('1.0000'):
+                try:
+                    rate_decimal = Decimal(str(rate))
+                    if rate_decimal < Decimal('0.0000') or rate_decimal > Decimal('1.0000'):
+                        issues.append(ValidationIssue(
+                            rule_set_id=self.rule_set_id,
+                            sheet_name=sheet_name,
+                            row_number=idx + 2,
+                            column_name=col_name,
+                            error_code="INVALID_RATE_RANGE",
+                            severity=IssueSeverity.ERROR,
+                            message=f"Tax rate {rate_decimal} is outside valid range (0.0000 to 1.0000) for entity type '{entity_coding}'",
+                            field_value=str(rate_decimal)
+                        ))
+                except (ValueError, InvalidOperation):
                     issues.append(ValidationIssue(
                         rule_set_id=self.rule_set_id,
                         sheet_name=sheet_name,
                         row_number=idx + 2,
-                        column_name="TaxRate",
-                        error_code="INVALID_RATE_RANGE",
+                        column_name=col_name,
+                        error_code="INVALID_RATE_FORMAT",
                         severity=IssueSeverity.ERROR,
-                        message=f"Tax rate {rate_decimal} is outside valid range (0.0000 to 1.0000)",
-                        field_value=str(rate_decimal)
+                        message=f"Invalid rate format '{rate}' for entity type '{entity_coding}'. Must be a number.",
+                        field_value=str(rate)
                     ))
-            except (ValueError, InvalidOperation):
-                # This will be caught by data type validation
-                pass
 
         return issues
 
@@ -314,45 +402,121 @@ class ExcelProcessor:
 
         return issues
 
-    def convert_to_withholding_rule(self, row: pd.Series, rule_set_id: str) -> WithholdingRule:
-        """Convert DataFrame row to WithholdingRule model."""
+    def convert_row_to_withholding_rules(self, row: pd.Series, rule_set_id: str, df: pd.DataFrame) -> List[WithholdingRule]:
+        """Convert DataFrame row to multiple WithholdingRule objects (one per entity type)."""
+        rules = []
+
+        # Extract state information
+        state_name = str(row['State']).strip()
+        state_abbrev = str(row['State Abbrev']).strip().upper()
+
         try:
-            state_code = USJurisdiction(str(row['State']).strip().upper())
+            state_code = USJurisdiction(state_abbrev)
         except ValueError:
             # Invalid state code - should be caught by validation
             state_code = USJurisdiction.CA  # Default fallback
 
-        return WithholdingRule(
-            rule_set_id=rule_set_id,
-            state_code=state_code,
-            entity_type=str(row['EntityType']).strip(),
-            tax_rate=Decimal(str(row['TaxRate'])),
-            income_threshold=Decimal(str(row['IncomeThreshold'])),
-            tax_threshold=Decimal(str(row['TaxThreshold']))
-        )
+        # Extract state-level thresholds
+        income_threshold = Decimal('0.00')
+        tax_threshold = Decimal('0.00')
 
-    def convert_to_composite_rule(self, row: pd.Series, rule_set_id: str) -> CompositeRule:
-        """Convert DataFrame row to CompositeRule model."""
+        if self.WITHHOLDING_INCOME_THRESHOLD_COL in df.columns:
+            income_val = row.get(self.WITHHOLDING_INCOME_THRESHOLD_COL)
+            if not pd.isna(income_val):
+                try:
+                    income_threshold = Decimal(str(income_val))
+                except (ValueError, InvalidOperation):
+                    pass
+
+        if self.WITHHOLDING_TAX_THRESHOLD_COL in df.columns:
+            tax_val = row.get(self.WITHHOLDING_TAX_THRESHOLD_COL)
+            if not pd.isna(tax_val):
+                try:
+                    tax_threshold = Decimal(str(tax_val))
+                except (ValueError, InvalidOperation):
+                    pass
+
+        # Get entity type columns for this sheet
+        entity_columns = self.get_entity_type_columns("Withholding", df)
+
+        # Create a rule for each entity type that has a tax rate
+        for col_name, entity_coding in entity_columns.items():
+            rate_value = row.get(col_name)
+            if not pd.isna(rate_value):
+                try:
+                    tax_rate = Decimal(str(rate_value))
+                    if tax_rate >= Decimal('0.0000'):  # Allow zero rates
+                        rules.append(WithholdingRule(
+                            rule_set_id=rule_set_id,
+                            state=state_name,
+                            state_code=state_code,
+                            entity_type=entity_coding,
+                            tax_rate=tax_rate,
+                            income_threshold=income_threshold,
+                            tax_threshold=tax_threshold
+                        ))
+                except (ValueError, InvalidOperation):
+                    # Skip invalid rates
+                    continue
+
+        return rules
+
+    def convert_row_to_composite_rules(self, row: pd.Series, rule_set_id: str, df: pd.DataFrame) -> List[CompositeRule]:
+        """Convert DataFrame row to multiple CompositeRule objects (one per entity type)."""
+        rules = []
+
+        # Extract state information
+        state_name = str(row['State']).strip()
+        state_abbrev = str(row['State Abbrev']).strip().upper()
+
         try:
-            state_code = USJurisdiction(str(row['State']).strip().upper())
+            state_code = USJurisdiction(state_abbrev)
         except ValueError:
             # Invalid state code - should be caught by validation
             state_code = USJurisdiction.CA  # Default fallback
 
-        # Parse boolean value for mandatory filing
+        # Extract state-level data
+        income_threshold = Decimal('0.00')
         mandatory_filing = False
-        if not pd.isna(row['MandatoryFiling']):
-            val = str(row['MandatoryFiling']).lower()
-            mandatory_filing = val in ['true', '1', 'yes', 'y']
 
-        return CompositeRule(
-            rule_set_id=rule_set_id,
-            state_code=state_code,
-            entity_type=str(row['EntityType']).strip(),
-            tax_rate=Decimal(str(row['TaxRate'])),
-            income_threshold=Decimal(str(row['IncomeThreshold'])),
-            mandatory_filing=mandatory_filing
-        )
+        if self.COMPOSITE_INCOME_THRESHOLD_COL in df.columns:
+            income_val = row.get(self.COMPOSITE_INCOME_THRESHOLD_COL)
+            if not pd.isna(income_val):
+                try:
+                    income_threshold = Decimal(str(income_val))
+                except (ValueError, InvalidOperation):
+                    pass
+
+        if self.COMPOSITE_MANDATORY_FILING_COL in df.columns:
+            mandatory_val = row.get(self.COMPOSITE_MANDATORY_FILING_COL)
+            if not pd.isna(mandatory_val):
+                val = str(mandatory_val).lower().strip()
+                mandatory_filing = val in ['true', '1', 'yes', 'y', 'mandatory']
+
+        # Get entity type columns for this sheet
+        entity_columns = self.get_entity_type_columns("Composite", df)
+
+        # Create a rule for each entity type that has a tax rate
+        for col_name, entity_coding in entity_columns.items():
+            rate_value = row.get(col_name)
+            if not pd.isna(rate_value):
+                try:
+                    tax_rate = Decimal(str(rate_value))
+                    if tax_rate >= Decimal('0.0000'):  # Allow zero rates
+                        rules.append(CompositeRule(
+                            rule_set_id=rule_set_id,
+                            state=state_name,
+                            state_code=state_code,
+                            entity_type=entity_coding,
+                            tax_rate=tax_rate,
+                            income_threshold=income_threshold,
+                            mandatory_filing=mandatory_filing
+                        ))
+                except (ValueError, InvalidOperation):
+                    # Skip invalid rates
+                    continue
+
+        return rules
 
     def validate_file(self, file_path: Union[str, Path]) -> ExcelValidationResult:
         """Validate Excel file structure and basic content without processing rules."""
@@ -386,11 +550,8 @@ class ExcelProcessor:
 
                 # Run all validation checks
                 self.validation_issues.extend(self.validate_sheet_structure(sheet_name, df))
-                self.validation_issues.extend(self.validate_data_types(sheet_name, df))
                 self.validation_issues.extend(self.validate_state_codes(sheet_name, df))
-                self.validation_issues.extend(self.validate_entity_types(sheet_name, df))
                 self.validation_issues.extend(self.validate_rate_ranges(sheet_name, df))
-                self.validation_issues.extend(self.validate_duplicate_rules(sheet_name, df))
 
             # Convert validation issues to error format
             errors = []
@@ -444,11 +605,8 @@ class ExcelProcessor:
 
                 # Validate sheet structure and data
                 self.validation_issues.extend(self.validate_sheet_structure("Withholding", withholding_df))
-                self.validation_issues.extend(self.validate_data_types("Withholding", withholding_df))
                 self.validation_issues.extend(self.validate_state_codes("Withholding", withholding_df))
-                self.validation_issues.extend(self.validate_entity_types("Withholding", withholding_df))
                 self.validation_issues.extend(self.validate_rate_ranges("Withholding", withholding_df))
-                self.validation_issues.extend(self.validate_duplicate_rules("Withholding", withholding_df))
 
                 # Convert to WithholdingRule objects if no critical errors
                 error_count = sum(1 for issue in self.validation_issues
@@ -457,9 +615,10 @@ class ExcelProcessor:
                 if error_count == 0 and rule_set_id:
                     for idx, row in withholding_df.iterrows():
                         try:
-                            rule = self.convert_to_withholding_rule(row, rule_set_id)
-                            withholding_rules.append(rule)
-                            rules_processed["withholding"] += 1
+                            # Convert one row to multiple rules (one per entity type)
+                            row_rules = self.convert_row_to_withholding_rules(row, rule_set_id, withholding_df)
+                            withholding_rules.extend(row_rules)
+                            rules_processed["withholding"] += len(row_rules)
                         except Exception as e:
                             self.validation_issues.append(ValidationIssue(
                                 rule_set_id=self.rule_set_id,
@@ -467,7 +626,7 @@ class ExcelProcessor:
                                 row_number=idx + 2,
                                 error_code="CONVERSION_ERROR",
                                 severity=IssueSeverity.ERROR,
-                                message=f"Failed to convert row to WithholdingRule: {str(e)}",
+                                message=f"Failed to convert row to WithholdingRules: {str(e)}",
                                 field_value=None
                             ))
 
@@ -477,11 +636,8 @@ class ExcelProcessor:
 
                 # Validate sheet structure and data
                 self.validation_issues.extend(self.validate_sheet_structure("Composite", composite_df))
-                self.validation_issues.extend(self.validate_data_types("Composite", composite_df))
                 self.validation_issues.extend(self.validate_state_codes("Composite", composite_df))
-                self.validation_issues.extend(self.validate_entity_types("Composite", composite_df))
                 self.validation_issues.extend(self.validate_rate_ranges("Composite", composite_df))
-                self.validation_issues.extend(self.validate_duplicate_rules("Composite", composite_df))
 
                 # Convert to CompositeRule objects if no critical errors
                 error_count = sum(1 for issue in self.validation_issues
@@ -490,9 +646,10 @@ class ExcelProcessor:
                 if error_count == 0 and rule_set_id:
                     for idx, row in composite_df.iterrows():
                         try:
-                            rule = self.convert_to_composite_rule(row, rule_set_id)
-                            composite_rules.append(rule)
-                            rules_processed["composite"] += 1
+                            # Convert one row to multiple rules (one per entity type)
+                            row_rules = self.convert_row_to_composite_rules(row, rule_set_id, composite_df)
+                            composite_rules.extend(row_rules)
+                            rules_processed["composite"] += len(row_rules)
                         except Exception as e:
                             self.validation_issues.append(ValidationIssue(
                                 rule_set_id=self.rule_set_id,
@@ -500,7 +657,7 @@ class ExcelProcessor:
                                 row_number=idx + 2,
                                 error_code="CONVERSION_ERROR",
                                 severity=IssueSeverity.ERROR,
-                                message=f"Failed to convert row to CompositeRule: {str(e)}",
+                                message=f"Failed to convert row to CompositeRules: {str(e)}",
                                 field_value=None
                             ))
 
