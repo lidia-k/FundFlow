@@ -33,7 +33,7 @@ class InvestorEntityType(Enum):
     GRANTOR_TRUST = ("Grantor Trust", "Individual")
     LLC_TAXED_AS_CORPORATION = ("LLC_Taxed as Corporation", "Corporation")
     LLC_TAXED_AS_PARTNERSHIP_ALT = ("LLC – Taxed as Partnership", "Partnership")
-    ESTATE = ("Estate", "Partnership")
+    ESTATE = ("Estate", "Estate")
     BENEFIT_PLAN_INVESTOR_PLAN_ASSETS = ("Benefit Plan Investor [Plan Assets Entity_ERISA 3(42)]", "Exempt Org")
 
     @classmethod

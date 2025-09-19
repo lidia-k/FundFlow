@@ -22,7 +22,8 @@
       "Bash(python:*)",
       "mcp__serena__replace_symbol_body",
       "mcp__codex-cli__ask-codex",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "mcp__serena__insert_after_symbol"
     ],
     "deny": [],
     "ask": []

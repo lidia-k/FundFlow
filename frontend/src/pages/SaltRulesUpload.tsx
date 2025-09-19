@@ -68,15 +68,30 @@ export default function SaltRulesUpload() {
       setUploadProgress(100);
 
       if (result.status === 'validation_failed') {
-        // Show validation errors
+        // Show validation errors with details
+        const errors = result.validation_errors || [];
+        const errorCount = errors.length;
+
+        let errorMessage = result.message || 'File validation failed';
+        if (errors.length > 0) {
+          const maxErrorsToShow = 2;
+          const errorList = errors.slice(0, maxErrorsToShow).map(err =>
+            `• Row ${err.row || 'N/A'}: ${err.message || err.error || 'Unknown error'}`
+          ).join('\n');
+          errorMessage += `\n\n${errorList}`;
+
+          if (errors.length > maxErrorsToShow) {
+            errorMessage += `\n• ... and ${errors.length - maxErrorsToShow} more errors`;
+          }
+        }
+
         toast({
           title: "File validation failed",
-          description: `Found ${result.validationErrors?.length || 0} validation errors`,
+          description: errorMessage,
           variant: "destructive",
         });
 
-        // You could also show a detailed error modal here
-        console.error('Validation errors:', result.validationErrors);
+        console.error('Validation errors:', errors);
         setUploadProgress(0);
       } else {
         // File is valid and uploaded successfully
