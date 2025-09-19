@@ -15,6 +15,14 @@ from ..models.enums import USJurisdiction, InvestorEntityType
 logger = logging.getLogger(__name__)
 
 
+class ExcelValidationResult:
+    """Result of Excel file validation (without processing rules)."""
+
+    def __init__(self, is_valid: bool, errors: List[Dict[str, Any]]):
+        self.is_valid = is_valid
+        self.errors = errors
+
+
 class ExcelProcessingResult:
     """Result of Excel processing operation."""
 
@@ -45,9 +53,6 @@ class ExcelProcessor:
     COMPOSITE_COLUMNS = [
         "State", "EntityType", "TaxRate", "IncomeThreshold", "MandatoryFiling"
     ]
-
-    # Optional columns for composite rules
-    COMPOSITE_OPTIONAL_COLUMNS = ["MinTaxAmount", "MaxTaxAmount"]
 
     # Valid state codes (from USJurisdiction enum)
     VALID_STATE_CODES = {state.value for state in USJurisdiction}
@@ -128,7 +133,7 @@ class ExcelProcessor:
             numeric_columns = ["TaxRate", "IncomeThreshold", "TaxThreshold"]
             string_columns = ["State", "EntityType"]
         elif sheet_name == "Composite":
-            numeric_columns = ["TaxRate", "IncomeThreshold"] + [col for col in self.COMPOSITE_OPTIONAL_COLUMNS if col in df.columns]
+            numeric_columns = ["TaxRate", "IncomeThreshold"]
             string_columns = ["State", "EntityType"]
             boolean_columns = ["MandatoryFiling"]
         else:
@@ -340,26 +345,85 @@ class ExcelProcessor:
             val = str(row['MandatoryFiling']).lower()
             mandatory_filing = val in ['true', '1', 'yes', 'y']
 
-        # Parse optional tax amounts
-        min_tax = None
-        max_tax = None
-
-        if 'MinTaxAmount' in row and not pd.isna(row['MinTaxAmount']):
-            min_tax = Decimal(str(row['MinTaxAmount']))
-
-        if 'MaxTaxAmount' in row and not pd.isna(row['MaxTaxAmount']):
-            max_tax = Decimal(str(row['MaxTaxAmount']))
-
         return CompositeRule(
             rule_set_id=rule_set_id,
             state_code=state_code,
             entity_type=str(row['EntityType']).strip(),
             tax_rate=Decimal(str(row['TaxRate'])),
             income_threshold=Decimal(str(row['IncomeThreshold'])),
-            mandatory_filing=mandatory_filing,
-            min_tax_amount=min_tax,
-            max_tax_amount=max_tax
+            mandatory_filing=mandatory_filing
         )
+
+    def validate_file(self, file_path: Union[str, Path]) -> ExcelValidationResult:
+        """Validate Excel file structure and basic content without processing rules."""
+        self.validation_issues = []
+        self.rule_set_id = "validation"  # Temporary ID for validation
+
+        try:
+            # Load Excel file
+            dataframes = self.load_excel_file(file_path)
+
+            # Check for missing required sheets first - fail immediately if any are missing
+            missing_sheets = set(self.REQUIRED_SHEETS) - set(dataframes.keys())
+            if missing_sheets:
+                errors = []
+                for sheet_name in missing_sheets:
+                    errors.append({
+                        "sheet": "FILE",
+                        "row": 1,
+                        "column": None,
+                        "error_code": "MISSING_REQUIRED_SHEET",
+                        "message": f"Required sheet '{sheet_name}' is missing from the workbook",
+                        "field_value": sheet_name
+                    })
+
+                logger.error(f"File validation failed: Missing required sheets: {missing_sheets}")
+                return ExcelValidationResult(is_valid=False, errors=errors)
+
+            # Validate each required sheet
+            for sheet_name in self.REQUIRED_SHEETS:
+                df = dataframes[sheet_name]
+
+                # Run all validation checks
+                self.validation_issues.extend(self.validate_sheet_structure(sheet_name, df))
+                self.validation_issues.extend(self.validate_data_types(sheet_name, df))
+                self.validation_issues.extend(self.validate_state_codes(sheet_name, df))
+                self.validation_issues.extend(self.validate_entity_types(sheet_name, df))
+                self.validation_issues.extend(self.validate_rate_ranges(sheet_name, df))
+                self.validation_issues.extend(self.validate_duplicate_rules(sheet_name, df))
+
+            # Convert validation issues to error format
+            errors = []
+            for issue in self.validation_issues:
+                if issue.severity == IssueSeverity.ERROR:
+                    errors.append({
+                        "sheet": issue.sheet_name,
+                        "row": issue.row_number,
+                        "column": issue.column_name,
+                        "error_code": issue.error_code,
+                        "message": issue.message,
+                        "field_value": issue.field_value
+                    })
+
+            is_valid = len(errors) == 0
+
+            logger.info(f"File validation completed. Valid: {is_valid}, Errors: {len(errors)}")
+
+            return ExcelValidationResult(is_valid=is_valid, errors=errors)
+
+        except Exception as e:
+            logger.error(f"File validation failed: {str(e)}")
+            return ExcelValidationResult(
+                is_valid=False,
+                errors=[{
+                    "sheet": "FILE",
+                    "row": 1,
+                    "column": None,
+                    "error_code": "VALIDATION_FAILED",
+                    "message": f"File validation failed: {str(e)}",
+                    "field_value": None
+                }]
+            )
 
     def process_file(self, file_path: Union[str, Path], rule_set_id: str = None) -> ExcelProcessingResult:
         """Process complete Excel file and return structured results."""

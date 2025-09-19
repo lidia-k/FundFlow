@@ -29,10 +29,6 @@ class CompositeRule(Base):
     income_threshold = Column(DECIMAL(12, 2), nullable=False)
     mandatory_filing = Column(Boolean, nullable=False)
 
-    # Additional thresholds
-    min_tax_amount = Column(DECIMAL(12, 2), nullable=True)
-    max_tax_amount = Column(DECIMAL(12, 2), nullable=True)
-
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -48,18 +44,6 @@ class CompositeRule(Base):
         CheckConstraint(
             "income_threshold >= 0.00",
             name="ck_composite_rule_income_threshold_positive"
-        ),
-        CheckConstraint(
-            "min_tax_amount IS NULL OR min_tax_amount >= 0.00",
-            name="ck_composite_rule_min_tax_positive"
-        ),
-        CheckConstraint(
-            "max_tax_amount IS NULL OR max_tax_amount >= 0.00",
-            name="ck_composite_rule_max_tax_positive"
-        ),
-        CheckConstraint(
-            "min_tax_amount IS NULL OR max_tax_amount IS NULL OR max_tax_amount >= min_tax_amount",
-            name="ck_composite_rule_max_gte_min_tax"
         ),
         # Unique constraint: one rule per rule_set/state/entity combination
         UniqueConstraint(

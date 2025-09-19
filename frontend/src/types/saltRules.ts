@@ -66,17 +66,30 @@ export interface PublishRequest {
   confirmArchive: boolean;
 }
 
+export interface ValidationError {
+  sheet: string;
+  row: number;
+  column?: string;
+  error_code: string;
+  message: string;
+  field_value?: any;
+}
+
 export interface UploadResponse {
   ruleSetId: string;
-  status: RuleSetStatus;
+  status: 'valid' | 'validation_failed';
   uploadedFile: {
     filename: string;
     fileSize: number;
-    sha256Hash: string;
     uploadTimestamp: string;
   };
   validationStarted: boolean;
   message: string;
+  validationErrors?: ValidationError[];
+  ruleCounts?: {
+    withholding: number;
+    composite: number;
+  };
 }
 
 export interface SaltRulesListResponse {

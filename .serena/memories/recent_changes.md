@@ -1,19 +1,16 @@
-# Recent Changes to FundFlow
+# Recent Changes
 
-## SHA256 Hashing and Duplicate Detection Removal (Latest)
+## SALT Rules Validation Improvements (Latest)
+- Implemented immediate file validation during upload process
+- Added early error reporting to prevent invalid data from reaching database
+- Simplified composite rule model by removing optional tax amount fields
+- Updated frontend to handle validation failures with proper error messaging
+- Removed separate validation endpoint in favor of upfront validation
+- Added rule counts to upload response for better user visibility
 
-**Date**: 2025-09-19
-**Files Modified**: 
-- `backend/src/services/file_service.py`
-- `backend/src/models/source_file.py` 
-- `backend/src/api/salt_rules.py`
-
-**Changes**:
-- Removed SHA256 hashing and duplicate detection functionality for prototype simplification
-- File uploads now override existing files with same name instead of detecting duplicates
-- Updated file size limit from 20MB to 10MB for prototype
-- Simplified file storage path structure from hash-based to filename-based
-- Removed ConflictResponse model and related API logic
-- Updated SourceFile model to remove sha256_hash field and related constraints
-
-**Impact**: Significantly simplified file upload workflow, making it more user-friendly for prototype validation.
+## Previous Changes
+- Enhanced file preview modal with dynamic column detection
+- Fixed Dashboard 404 error by adding sessions API endpoint
+- Implemented v1.3 format support with flexible column detection
+- Completed MVP implementation with all Phase 3.1-3.7 tasks
+- Fixed Docker configuration and dependency conflicts

@@ -45,11 +45,6 @@ export const saltRulesApi = {
     return response.data;
   },
 
-  // Get validation results for a rule set
-  getValidation: async (ruleSetId: string): Promise<ValidationResponse> => {
-    const response = await saltRulesClient.get<ValidationResponse>(`/${ruleSetId}/validation`);
-    return response.data;
-  },
 
   // Get preview of changes before publishing
   getPreview: async (ruleSetId: string): Promise<RulePreview> => {

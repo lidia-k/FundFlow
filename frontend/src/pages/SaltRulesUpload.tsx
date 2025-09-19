@@ -67,21 +67,35 @@ export default function SaltRulesUpload() {
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      toast({
-        title: "Upload successful!",
-        description: "SALT rules matrix uploaded and validation started",
-      });
+      if (result.status === 'validation_failed') {
+        // Show validation errors
+        toast({
+          title: "File validation failed",
+          description: `Found ${result.validationErrors?.length || 0} validation errors`,
+          variant: "destructive",
+        });
 
-      // Navigate to the rule set details page after a short delay
-      setTimeout(() => {
-        navigate(`/salt-rules/${result.ruleSetId}`);
-      }, 1000);
+        // You could also show a detailed error modal here
+        console.error('Validation errors:', result.validationErrors);
+        setUploadProgress(0);
+      } else {
+        // File is valid and uploaded successfully
+        toast({
+          title: "Upload successful!",
+          description: `File validated and uploaded. ${result.ruleCounts?.withholding || 0} withholding rules, ${result.ruleCounts?.composite || 0} composite rules processed.`,
+        });
+
+        // Navigate to the rule set details page after a short delay
+        setTimeout(() => {
+          navigate(`/salt-rules/${result.ruleSetId}`);
+        }, 1000);
+      }
 
     } catch (error: any) {
       clearInterval(progressInterval);
       console.error('Upload error:', error);
 
-      const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Unknown error occurred';
 
       toast({
         title: "Upload failed",

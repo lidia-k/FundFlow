@@ -34,10 +34,12 @@ class PublishRequest(BaseModel):
 class UploadResponse(BaseModel):
     """Response model for upload endpoint."""
     rule_set_id: str
-    status: str
+    status: str  # "valid", "validation_failed"
     uploaded_file: Dict[str, Any]
     validation_started: bool
     message: str
+    validation_errors: Optional[List[Dict[str, Any]]] = None
+    rule_counts: Optional[Dict[str, int]] = None
 
 
 class ValidationResponse(BaseModel):
@@ -64,9 +66,10 @@ async def upload_salt_rules(
     db: Session = Depends(get_db)
 ) -> UploadResponse:
     """
-    Upload SALT rule workbook and create draft rule set.
+    Upload and validate SALT rule workbook.
 
-    Creates a draft rule set and initiates validation pipeline.
+    Validates the file first, then saves to database only if validation passes.
+    Returns validation errors immediately if file is invalid.
     """
     # Auto-detect current year and quarter
     current_date = datetime.now()
@@ -83,13 +86,13 @@ async def upload_salt_rules(
     else:
         quarter_enum = Quarter.Q4
 
+    # Basic input validation
     if description and len(description) > 500:
         raise HTTPException(
             status_code=400,
             detail="Description must be 500 characters or less"
         )
 
-    # Validate file
     if not file.filename:
         raise HTTPException(
             status_code=400,
@@ -110,17 +113,38 @@ async def upload_salt_rules(
         )
 
     try:
-        # Initialize services
-        file_service = FileService(db)
-        excel_processor = ExcelProcessor()
-
-        # Save uploaded file temporarily
+        # Save uploaded file temporarily for validation
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
             content = await file.read()
             temp_file.write(content)
             temp_file_path = Path(temp_file.name)
 
         try:
+            # STEP 1: Validate file first (before saving anything to DB)
+            excel_processor = ExcelProcessor()
+            validation_service = ValidationService(db)
+
+            # Validate file structure and content
+            validation_result = excel_processor.validate_file(temp_file_path)
+
+            # If validation fails, return errors immediately without saving to DB
+            if not validation_result.is_valid:
+                return UploadResponse(
+                    rule_set_id="",
+                    status="validation_failed",
+                    uploaded_file={
+                        "filename": file.filename,
+                        "fileSize": file.size or 0,
+                        "uploadTimestamp": datetime.now().isoformat() + "Z"
+                    },
+                    validation_started=False,
+                    message="File validation failed",
+                    validation_errors=validation_result.errors
+                )
+
+            # STEP 2: File is valid, now save to database
+            file_service = FileService(db)
+
             # Store file and check for duplicates
             storage_result = file_service.store_uploaded_file(
                 temp_file_path, file.filename, file.content_type or
@@ -154,7 +178,7 @@ async def upload_salt_rules(
             db.commit()
             db.refresh(rule_set)
 
-            # Process Excel file
+            # Process Excel file and extract rules
             processing_result = excel_processor.process_file(
                 Path(storage_result.source_file.filepath), rule_set_id
             )
@@ -175,14 +199,18 @@ async def upload_salt_rules(
 
             return UploadResponse(
                 rule_set_id=rule_set_id,
-                status="draft",
+                status="valid",
                 uploaded_file={
                     "filename": storage_result.source_file.filename,
                     "fileSize": storage_result.source_file.file_size,
                     "uploadTimestamp": storage_result.source_file.upload_timestamp.isoformat() + "Z"
                 },
                 validation_started=True,
-                message="File uploaded successfully and validation initiated"
+                message="File uploaded and validated successfully",
+                rule_counts={
+                    "withholding": len(processing_result.withholding_rules),
+                    "composite": len(processing_result.composite_rules)
+                }
             )
 
         finally:
@@ -199,46 +227,6 @@ async def upload_salt_rules(
         )
 
 
-@router.get("/{rule_set_id}/validation")
-async def get_validation_results(
-    rule_set_id: str,
-    format: str = Query("json", regex="^(json|csv)$"),
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """Get validation results for uploaded rule set."""
-    try:
-        # Validate rule set exists
-        rule_set = db.get(SaltRuleSet, rule_set_id)
-        if not rule_set:
-            raise HTTPException(
-                status_code=404,
-                detail="Rule set not found"
-            )
-
-        validation_service = ValidationService(db)
-
-        if format == "csv":
-            # Return CSV download response
-            csv_content = validation_service.export_validation_issues_csv(rule_set_id)
-            from fastapi.responses import Response
-            return Response(
-                content=csv_content,
-                media_type="text/csv",
-                headers={"Content-Disposition": f"attachment; filename=validation-{rule_set_id}.csv"}
-            )
-        else:
-            # Return JSON response
-            validation_result = validation_service.get_validation_results(rule_set_id)
-            return validation_result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting validation results: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
 
 
 @router.get("/{rule_set_id}/preview")

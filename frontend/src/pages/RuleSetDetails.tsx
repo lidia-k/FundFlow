@@ -50,14 +50,10 @@ export default function RuleSetDetails() {
       setLoading(true);
       setError(null);
 
-      // Load rule set details and validation results in parallel
-      const [ruleSetData, validationData] = await Promise.all([
-        saltRulesApi.getDetails(ruleSetId),
-        saltRulesApi.getValidation(ruleSetId).catch(() => null) // Validation might not exist yet
-      ]);
-
+      // Load rule set details only (validation is done during upload)
+      const ruleSetData = await saltRulesApi.getDetails(ruleSetId);
       setRuleSet(ruleSetData);
-      setValidation(validationData);
+      setValidation(null); // No separate validation endpoint needed
     } catch (error: any) {
       console.error('Failed to load rule set data:', error);
       setError('Failed to load rule set details. Please try again.');
