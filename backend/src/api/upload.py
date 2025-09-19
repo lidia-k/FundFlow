@@ -12,7 +12,6 @@ from ..services.session_service import SessionService
 from ..services.excel_service import ExcelService
 from ..services.investor_service import InvestorService
 from ..services.distribution_service import DistributionService
-from ..services.upload_validation_service import UploadValidationService
 from ..models.user_session import UploadStatus
 
 router = APIRouter()

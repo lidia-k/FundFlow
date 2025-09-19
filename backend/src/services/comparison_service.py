@@ -1,7 +1,7 @@
 """Rule comparison service for diff preview between SALT rule sets."""
 
 import logging
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 from decimal import Decimal
 from sqlalchemy.orm import Session

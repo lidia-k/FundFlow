@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from decimal import Decimal, InvalidOperation
 import pandas as pd
-from openpyxl import load_workbook
 
 from ..models.validation_issue import ValidationIssue, IssueSeverity
 from ..models.withholding_rule import WithholdingRule
@@ -295,32 +294,6 @@ class ExcelProcessor:
                     severity=IssueSeverity.ERROR,
                     message=f"Invalid state abbreviation '{state_str}'. Must be valid US state abbreviation.",
                     field_value=state_str
-                ))
-
-        return issues
-
-    def validate_entity_types(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
-        """Validate entity types against InvestorEntityType enum coding values."""
-        issues = []
-
-        if "EntityType" not in df.columns:
-            return issues
-
-        for idx, entity_type in df["EntityType"].items():
-            if pd.isna(entity_type):
-                continue
-
-            entity_str = str(entity_type).strip()
-            if entity_str not in self.VALID_ENTITY_TYPES:
-                issues.append(ValidationIssue(
-                    rule_set_id=self.rule_set_id,
-                    sheet_name=sheet_name,
-                    row_number=idx + 2,
-                    column_name="EntityType",
-                    error_code="INVALID_ENTITY_TYPE",
-                    severity=IssueSeverity.ERROR,
-                    message=f"Invalid entity type '{entity_str}'. Must be valid SALT entity type coding.",
-                    field_value=entity_str
                 ))
 
         return issues

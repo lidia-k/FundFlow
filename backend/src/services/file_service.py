@@ -230,27 +230,3 @@ class FileService:
 
         except Exception as e:
             return False, f"Error validating file format: {str(e)}"
-
-    def get_storage_stats(self) -> Dict:
-        """Get storage statistics."""
-        try:
-            total_files = self.db.query(SourceFile).count()
-            total_size = sum(
-                sf.file_size for sf in self.db.query(SourceFile.file_size).all()
-            ) or 0
-
-            return {
-                "totalFiles": total_files,
-                "totalSizeBytes": total_size,
-                "totalSizeMB": round(total_size / (1024 * 1024), 2),
-                "storageRoot": str(self.storage_root)
-            }
-
-        except Exception as e:
-            logger.error(f"Error getting storage stats: {str(e)}")
-            return {
-                "totalFiles": 0,
-                "totalSizeBytes": 0,
-                "totalSizeMB": 0.0,
-                "storageRoot": str(self.storage_root)
-            }

@@ -8,7 +8,7 @@ from uuid import uuid4
 from datetime import datetime, date
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
 from ..database.connection import get_db
 from ..services.excel_processor import ExcelProcessor

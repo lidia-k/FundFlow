@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 from uuid import uuid4
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
 
 from ..models.salt_rule_set import SaltRuleSet, RuleSetStatus
 from ..models.withholding_rule import WithholdingRule
@@ -433,46 +432,4 @@ class RuleSetService:
 
         logger.info(f"Generated {len(resolved_rules)} resolved rules")
 
-    def get_rule_set_statistics(self) -> Dict[str, Any]:
-        """
-        Get overall statistics about rule sets.
-
-        Returns:
-            Dictionary with rule set statistics
-        """
-        # Count by status (no draft status anymore)
-        draft_count = 0
-
-        active_count = self.db.query(SaltRuleSet).filter(
-            SaltRuleSet.status == RuleSetStatus.ACTIVE
-        ).count()
-
-        archived_count = self.db.query(SaltRuleSet).filter(
-            SaltRuleSet.status == RuleSetStatus.ARCHIVED
-        ).count()
-
-        # Get latest rule sets
-        latest_rule_sets = (
-            self.db.query(SaltRuleSet)
-            .filter(SaltRuleSet.status == RuleSetStatus.ACTIVE)
-            .order_by(SaltRuleSet.created_at.desc())
-            .limit(5)
-            .all()
-        )
-
-        return {
-            "totalRuleSets": active_count + archived_count,
-            "statusCounts": {
-                "active": active_count,
-                "archived": archived_count
-            },
-            "latestActive": [
-                {
-                    "id": str(rs.id),
-                    "year": rs.year,
-                    "quarter": rs.quarter.value,
-                    "publishedAt": rs.published_at.isoformat() + "Z" if rs.published_at else None
-                }
-                for rs in latest_rule_sets
-            ]
-        }
+ 
