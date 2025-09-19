@@ -123,8 +123,8 @@ class RuleSetService:
         if not rule_set:
             raise ValueError(f"Rule set not found: {rule_set_id}")
 
-        if rule_set.status != RuleSetStatus.DRAFT:
-            raise ValueError("Only draft rule sets can be published")
+        if rule_set.status != RuleSetStatus.ACTIVE:
+            raise ValueError("Only active rule sets can be republished")
 
         # Check for validation errors
         error_count = (
@@ -391,10 +391,8 @@ class RuleSetService:
         Returns:
             Dictionary with rule set statistics
         """
-        # Count by status
-        draft_count = self.db.query(SaltRuleSet).filter(
-            SaltRuleSet.status == RuleSetStatus.DRAFT
-        ).count()
+        # Count by status (no draft status anymore)
+        draft_count = 0
 
         active_count = self.db.query(SaltRuleSet).filter(
             SaltRuleSet.status == RuleSetStatus.ACTIVE
@@ -414,9 +412,8 @@ class RuleSetService:
         )
 
         return {
-            "totalRuleSets": draft_count + active_count + archived_count,
+            "totalRuleSets": active_count + archived_count,
             "statusCounts": {
-                "draft": draft_count,
                 "active": active_count,
                 "archived": archived_count
             },

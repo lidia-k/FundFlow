@@ -285,6 +285,7 @@ Always use context7 when I need code generation, setup or configuration steps, o
 - When unsure about implementation details, always ask the developer first.
 - Never modify test code unless explicitly instructed by the user.
 - Never change API names or parameters unless explicitly instructed by the user.
+- DO NOT over-engineer or add extra logic beyond what the user asked; if more complexity seems necessary, confirm with the user first.
 - Never migrate data on your own initiative.
 - Always use uv for package management operations
 - Never use pip install directly - use uv add instead

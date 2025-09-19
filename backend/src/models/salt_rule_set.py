@@ -20,7 +20,7 @@ class SaltRuleSet(Base):
     year = Column(Integer, nullable=False)
     quarter = Column(SQLEnum(Quarter), nullable=False)
     version = Column(String(20), nullable=False)
-    status = Column(SQLEnum(RuleSetStatus), nullable=False, default=RuleSetStatus.DRAFT)
+    status = Column(SQLEnum(RuleSetStatus), nullable=False, default=RuleSetStatus.ACTIVE)
 
     # Lifecycle dates
     effective_date = Column(Date, nullable=False)

@@ -142,26 +142,20 @@ async def upload_salt_rules(
                     validation_errors=validation_result.errors
                 )
 
-            # STEP 2: File is valid - delete any existing draft and create new one
-            # Delete existing DRAFT rule set for this year/quarter (simple override)
-            existing_rule_set = db.query(SaltRuleSet).filter(
+            # STEP 2: File is valid - archive any existing active rule set
+            # Archive any existing ACTIVE rule set for this year/quarter
+            existing_active_rule_set = db.query(SaltRuleSet).filter(
                 SaltRuleSet.year == year,
                 SaltRuleSet.quarter == quarter_enum,
-                SaltRuleSet.status == RuleSetStatus.DRAFT
+                SaltRuleSet.status == RuleSetStatus.ACTIVE
             ).first()
 
-            if existing_rule_set:
-                logger.info(f"Found existing draft rule set: {existing_rule_set.id}")
-                # Also delete the associated source file to avoid unique constraint violation
-                if existing_rule_set.source_file:
-                    logger.info(f"Deleting existing source file: {existing_rule_set.source_file.filepath}")
-                    db.delete(existing_rule_set.source_file)
-                else:
-                    logger.warning("Existing rule set has no associated source file")
-                logger.info(f"Deleting existing rule set: {existing_rule_set.id}")
-                db.delete(existing_rule_set)  # Cascade will delete related records
+            if existing_active_rule_set:
+                logger.info(f"Found existing active rule set: {existing_active_rule_set.id}, archiving it")
+                existing_active_rule_set.status = RuleSetStatus.ARCHIVED
+                existing_active_rule_set.archived_at = datetime.now()
                 db.commit()
-                logger.info("Successfully deleted existing draft rule set and source file")
+                logger.info("Successfully archived existing active rule set")
 
             # Store file (simple override if exists)
             file_service = FileService(db)
@@ -175,19 +169,20 @@ async def upload_salt_rules(
             if storage_result.error_message:
                 raise HTTPException(status_code=400, detail=storage_result.error_message)
 
-            # Create new rule set
+            # Create new rule set with ACTIVE status
             rule_set_id = str(uuid4())
             rule_set = SaltRuleSet(
                 id=rule_set_id,
                 year=year,
                 quarter=quarter_enum,
                 version="1.0.0",
-                status=RuleSetStatus.DRAFT,
+                status=RuleSetStatus.ACTIVE,
                 effective_date=date.today(),
                 created_at=datetime.now(),
                 created_by="admin@fundflow.com",  # TODO: Get from auth
                 description=description,
-                source_file_id=storage_result.source_file.id
+                source_file_id=storage_result.source_file.id,
+                published_at=datetime.now()
             )
 
             db.add(rule_set)
@@ -292,10 +287,10 @@ async def publish_rule_set(
                 detail="Rule set not found"
             )
 
-        if rule_set.status != RuleSetStatus.DRAFT:
+        if rule_set.status != RuleSetStatus.ACTIVE:
             raise HTTPException(
                 status_code=400,
-                detail="Only draft rule sets can be published"
+                detail="Only active rule sets can be republished"
             )
 
         # Use RuleSetService to handle publication
@@ -365,7 +360,7 @@ async def list_rule_sets(
             except ValueError:
                 raise HTTPException(
                     status_code=400,
-                    detail="Status must be one of: draft, active, archived"
+                    detail="Status must be one of: active, archived"
                 )
 
         # Get total count
@@ -455,7 +450,7 @@ async def delete_rule_set(
                 detail="Rule set not found"
             )
 
-        # Check if rule set can be deleted (only draft and archived rule sets)
+        # Check if rule set can be deleted (only archived rule sets)
         if rule_set.status == RuleSetStatus.ACTIVE:
             raise HTTPException(
                 status_code=400,

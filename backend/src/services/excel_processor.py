@@ -361,13 +361,8 @@ class ExcelProcessor:
         # Extract state information
         state_name = str(row['State']).strip()
         state_abbrev = str(row['State Abbrev']).strip().upper()
-
-        try:
-            state_code = USJurisdiction(state_abbrev)
-        except ValueError:
-            # Invalid state code - should be caught by validation
-            state_code = USJurisdiction.CA  # Default fallback
-
+        state_code = USJurisdiction(state_abbrev)
+    
         # Extract state-level thresholds
         income_threshold = Decimal('0.00')
         tax_threshold = Decimal('0.00')
@@ -420,12 +415,7 @@ class ExcelProcessor:
         # Extract state information
         state_name = str(row['State']).strip()
         state_abbrev = str(row['State Abbrev']).strip().upper()
-
-        try:
-            state_code = USJurisdiction(state_abbrev)
-        except ValueError:
-            # Invalid state code - should be caught by validation
-            state_code = USJurisdiction.CA  # Default fallback
+        state_code = USJurisdiction(state_abbrev)
 
         # Extract state-level data
         income_threshold = Decimal('0.00')
@@ -554,7 +544,6 @@ class ExcelProcessor:
 
     def process_file(self, file_path: Union[str, Path], rule_set_id: str = None) -> ExcelProcessingResult:
         """Process complete Excel file and return structured results."""
-        self.validation_issues = []
         self.rule_set_id = rule_set_id
 
         try:
@@ -569,61 +558,43 @@ class ExcelProcessor:
             if "Withholding" in dataframes:
                 withholding_df = dataframes["Withholding"]
 
-                # Validate sheet structure and data
-                self.validation_issues.extend(self.validate_sheet_structure("Withholding", withholding_df))
-                self.validation_issues.extend(self.validate_state_codes("Withholding", withholding_df))
-
-                # Convert to WithholdingRule objects if no critical errors
-                error_count = sum(1 for issue in self.validation_issues
-                                if issue.severity == IssueSeverity.ERROR and issue.sheet_name == "Withholding")
-
-                if error_count == 0 and rule_set_id:
-                    for idx, row in withholding_df.iterrows():
-                        try:
-                            # Convert one row to multiple rules (one per entity type)
-                            row_rules = self.convert_row_to_withholding_rules(row, rule_set_id, withholding_df)
-                            withholding_rules.extend(row_rules)
-                            rules_processed["withholding"] += len(row_rules)
-                        except Exception as e:
-                            self.validation_issues.append(ValidationIssue(
-                                rule_set_id=self.rule_set_id,
-                                sheet_name="Withholding",
-                                row_number=idx + 2,
-                                error_code="CONVERSION_ERROR",
-                                severity=IssueSeverity.ERROR,
-                                message=f"Failed to convert row to WithholdingRules: {str(e)}",
-                                field_value=None
-                            ))
+                for idx, row in withholding_df.iterrows():
+                    try:
+                        # Convert one row to multiple rules (one per entity type)
+                        row_rules = self.convert_row_to_withholding_rules(row, rule_set_id, withholding_df)
+                        withholding_rules.extend(row_rules)
+                        rules_processed["withholding"] += len(row_rules)
+                    except Exception as e:
+                        self.validation_issues.append(ValidationIssue(
+                            rule_set_id=self.rule_set_id,
+                            sheet_name="Withholding",
+                            row_number=idx + 2,
+                            error_code="CONVERSION_ERROR",
+                            severity=IssueSeverity.ERROR,
+                            message=f"Failed to convert row to WithholdingRules: {str(e)}",
+                            field_value=None
+                        ))
 
             # Process Composite sheet
             if "Composite" in dataframes:
                 composite_df = dataframes["Composite"]
 
-                # Validate sheet structure and data
-                self.validation_issues.extend(self.validate_sheet_structure("Composite", composite_df))
-                self.validation_issues.extend(self.validate_state_codes("Composite", composite_df))
-
-                # Convert to CompositeRule objects if no critical errors
-                error_count = sum(1 for issue in self.validation_issues
-                                if issue.severity == IssueSeverity.ERROR and issue.sheet_name == "Composite")
-
-                if error_count == 0 and rule_set_id:
-                    for idx, row in composite_df.iterrows():
-                        try:
-                            # Convert one row to multiple rules (one per entity type)
-                            row_rules = self.convert_row_to_composite_rules(row, rule_set_id, composite_df)
-                            composite_rules.extend(row_rules)
-                            rules_processed["composite"] += len(row_rules)
-                        except Exception as e:
-                            self.validation_issues.append(ValidationIssue(
-                                rule_set_id=self.rule_set_id,
-                                sheet_name="Composite",
-                                row_number=idx + 2,
-                                error_code="CONVERSION_ERROR",
-                                severity=IssueSeverity.ERROR,
-                                message=f"Failed to convert row to CompositeRules: {str(e)}",
-                                field_value=None
-                            ))
+                for idx, row in composite_df.iterrows():
+                    try:
+                        # Convert one row to multiple rules (one per entity type)
+                        row_rules = self.convert_row_to_composite_rules(row, rule_set_id, composite_df)
+                        composite_rules.extend(row_rules)
+                        rules_processed["composite"] += len(row_rules)
+                    except Exception as e:
+                        self.validation_issues.append(ValidationIssue(
+                            rule_set_id=self.rule_set_id,
+                            sheet_name="Composite",
+                            row_number=idx + 2,
+                            error_code="CONVERSION_ERROR",
+                            severity=IssueSeverity.ERROR,
+                            message=f"Failed to convert row to CompositeRules: {str(e)}",
+                            field_value=None
+                        ))
 
             logger.info(f"Excel processing completed. Rules processed: {rules_processed}, "
                        f"Validation issues: {len(self.validation_issues)}")

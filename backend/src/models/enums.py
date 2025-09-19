@@ -112,7 +112,6 @@ class USJurisdiction(Enum):
 
 class RuleSetStatus(Enum):
     """SALT rule set status enumeration."""
-    DRAFT = "draft"
     ACTIVE = "active"
     ARCHIVED = "archived"
 
