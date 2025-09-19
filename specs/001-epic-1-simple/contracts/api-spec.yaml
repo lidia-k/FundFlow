@@ -1,0 +1,472 @@
+openapi: 3.0.3
+info:
+  title: FundFlow File Upload & Validation API
+  description: API for uploading and validating PE fund distribution Excel files
+  version: 1.2.0
+  contact:
+    name: FundFlow Development Team
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+
+paths:
+  /upload:
+    post:
+      summary: Upload Excel file for processing
+      description: Upload portfolio distribution Excel file, validate format and data, save to database
+      operationId: uploadFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel file (.xlsx or .xls) containing distribution data
+              required:
+                - file
+      responses:
+        '200':
+          description: File uploaded and processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Invalid file or validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '413':
+          description: File too large (>10MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '415':
+          description: Unsupported file type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /results/{session_id}:
+    get:
+      summary: Get calculation results and status
+      description: Retrieve processing status, results, and validation errors for a session
+      operationId: getResults
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Session ID returned from upload
+      responses:
+        '200':
+          description: Results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResultsResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /results/{session_id}/download:
+    get:
+      summary: Download results as Excel file
+      description: Download processed results and calculations as Excel spreadsheet
+      operationId: downloadResults
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Session ID returned from upload
+      responses:
+        '200':
+          description: Excel file download
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Session not found or no results available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /results/{session_id}/errors:
+    get:
+      summary: Export validation errors as CSV
+      description: Download validation errors and warnings as CSV file
+      operationId: downloadErrors
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ERROR, WARNING]
+          description: Filter by error severity
+        - name: error_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by specific error code
+      responses:
+        '200':
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /template:
+    get:
+      summary: Download Excel template
+      description: Download standard portfolio template with validation dropdowns
+      operationId: downloadTemplate
+      responses:
+        '200':
+          description: Excel template file
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+              example: portfolio_template.xlsx
+
+  /progress/{session_id}:
+    get:
+      summary: Get real-time processing progress
+      description: Get current processing status and progress percentage
+      operationId: getProgress
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Progress information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    UploadResponse:
+      type: object
+      required:
+        - session_id
+        - filename
+        - status
+        - message
+        - created_at
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: Unique session identifier
+        filename:
+          type: string
+          description: Original filename
+        status:
+          $ref: '#/components/schemas/UploadStatus'
+        message:
+          type: string
+          description: Status message
+        created_at:
+          type: string
+          format: date-time
+        file_hash:
+          type: string
+          description: SHA256 hash for duplicate detection
+
+    SessionResultsResponse:
+      type: object
+      required:
+        - session_id
+        - filename
+        - status
+        - created_at
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        status:
+          $ref: '#/components/schemas/UploadStatus'
+        progress_percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        total_rows:
+          type: integer
+          minimum: 0
+        valid_rows:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        summary:
+          $ref: '#/components/schemas/ProcessingSummary'
+        preview_data:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/InvestorPreview'
+        validation_errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+    ProcessingSummary:
+      type: object
+      properties:
+        investors_upserted:
+          type: integer
+          minimum: 0
+        distributions_inserted:
+          type: integer
+          minimum: 0
+        rows_skipped:
+          type: integer
+          minimum: 0
+        error_count:
+          type: integer
+          minimum: 0
+        warning_count:
+          type: integer
+          minimum: 0
+
+    InvestorPreview:
+      type: object
+      required:
+        - row_number
+        - fund_code
+        - period_quarter
+        - period_year
+        - investor_name
+        - investor_entity_type
+        - investor_tax_state
+      properties:
+        row_number:
+          type: integer
+          minimum: 1
+        fund_code:
+          type: string
+        period_quarter:
+          type: string
+          enum: [Q1, Q2, Q3, Q4]
+        period_year:
+          type: integer
+          minimum: 2020
+        investor_name:
+          type: string
+        investor_entity_type:
+          $ref: '#/components/schemas/InvestorEntityType'
+        investor_tax_state:
+          type: string
+          pattern: '^[A-Z]{2}$|^DC$'
+        distribution_tx_nm:
+          type: number
+          minimum: 0
+          nullable: true
+        distribution_co:
+          type: number
+          minimum: 0
+          nullable: true
+
+    ValidationError:
+      type: object
+      required:
+        - row_number
+        - column_name
+        - error_code
+        - error_message
+        - severity
+      properties:
+        row_number:
+          type: integer
+          minimum: 1
+        column_name:
+          type: string
+        error_code:
+          type: string
+          enum:
+            - MISSING_HEADER
+            - INVALID_FILENAME
+            - EMPTY_FIELD
+            - INVALID_ENTITY_TYPE
+            - INVALID_STATE_CODE
+            - NEGATIVE_AMOUNT
+            - ZERO_DISTRIBUTIONS
+            - DUPLICATE_INVESTOR
+            - INVALID_NUMBER_FORMAT
+            - ROW_LIMIT_EXCEEDED
+            - FILE_SIZE_EXCEEDED
+        error_message:
+          type: string
+          maxLength: 500
+        severity:
+          $ref: '#/components/schemas/ErrorSeverity'
+        field_value:
+          type: string
+          nullable: true
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - session_id
+        - status
+        - errors
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/UploadStatus'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+        summary:
+          type: object
+          properties:
+            total_errors:
+              type: integer
+            error_count:
+              type: integer
+            warning_count:
+              type: integer
+
+    ProgressResponse:
+      type: object
+      required:
+        - session_id
+        - status
+        - progress_percentage
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/UploadStatus'
+        progress_percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        current_stage:
+          type: string
+          description: Human-readable current processing stage
+        estimated_completion:
+          type: string
+          format: date-time
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+        error_code:
+          type: string
+          nullable: true
+
+    UploadStatus:
+      type: string
+      enum:
+        - queued
+        - uploading
+        - parsing
+        - validating
+        - saving
+        - completed
+        - failed_upload
+        - failed_parsing
+        - failed_validation
+        - failed_saving
+
+    InvestorEntityType:
+      type: string
+      enum:
+        - Corporation
+        - Exempt Organization
+        - Government Benefit Plan
+        - Individual
+        - Joint Tenancy / Tenancy in Common
+        - LLC_Taxed as Partnership
+        - LLP
+        - Limited Partnership
+        - Partnership
+        - Trust
+
+    ErrorSeverity:
+      type: string
+      enum:
+        - ERROR
+        - WARNING
+
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: session_id
+      description: Session-based authentication for prototype
+
+security:
+  - sessionAuth: []
+
+tags:
+  - name: upload
+    description: File upload operations
+  - name: results
+    description: Results and progress tracking
+  - name: template
+    description: Template download utilities

@@ -1,12 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { api } from '../api/client';
 import type { SessionInfo } from '../types/api';
+import FilePreviewModal from '../components/FilePreviewModal';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 export default function Dashboard() {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    filename: string;
+  }>({
+    isOpen: false,
+    sessionId: '',
+    filename: '',
+  });
+
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    filename: string;
+  }>({
+    isOpen: false,
+    sessionId: '',
+    filename: '',
+  });
+
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadSessions();
@@ -46,20 +69,72 @@ export default function Dashboard() {
     }
   };
 
+  const handleFileNameClick = (session: SessionInfo) => {
+    setPreviewModal({
+      isOpen: true,
+      sessionId: session.session_id,
+      filename: session.filename,
+    });
+  };
+
+  const handleClosePreview = () => {
+    setPreviewModal({
+      isOpen: false,
+      sessionId: '',
+      filename: '',
+    });
+  };
+
+  const handleDeleteClick = (session: SessionInfo) => {
+    setDeleteModal({
+      isOpen: true,
+      sessionId: session.session_id,
+      filename: session.filename,
+    });
+  };
+
+  const handleCloseDelete = () => {
+    setDeleteModal({
+      isOpen: false,
+      sessionId: '',
+      filename: '',
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.sessionId) return;
+
+    setIsDeleting(true);
+    try {
+      await api.deleteSession(deleteModal.sessionId);
+
+      // Remove the session from the local state
+      setSessions(prevSessions =>
+        prevSessions.filter(session => session.session_id !== deleteModal.sessionId)
+      );
+
+      // Close the modal
+      handleCloseDelete();
+
+      // Show success message (you could add a toast notification here)
+      console.log('Session deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      // Show error message (you could add a toast notification here)
+      alert('Failed to delete the calculation. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">
-            Welcome to FundFlow SALT calculation platform
-          </p>
-        </div>
-        <Link to="/upload" className="btn-primary">
-          <CloudArrowUpIcon className="h-5 w-5 mr-2" />
-          New Calculation
-        </Link>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-2 text-gray-600">
+          Welcome to FundFlow SALT calculation platform
+        </p>
       </div>
 
       {/* Quick Actions */}
@@ -144,7 +219,7 @@ export default function Dashboard() {
                 {sessions.slice(0, 10).map((session) => (
                   <tr key={session.session_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-primary-600 hover:text-primary-900 cursor-pointer" onClick={() => handleFileNameClick(session)}>
                         {session.filename}
                       </div>
                       <div className="text-sm text-gray-500">
@@ -160,12 +235,21 @@ export default function Dashboard() {
                       {formatDate(session.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link
-                        to={`/results/${session.session_id}`}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                        View Results
-                      </Link>
+                      <div className="flex items-center space-x-4">
+                        <Link
+                          to={`/results/${session.session_id}`}
+                          className="text-primary-600 hover:text-primary-900"
+                        >
+                          View Results
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteClick(session)}
+                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                          title="Delete calculation"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -174,6 +258,24 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={handleClosePreview}
+        sessionId={previewModal.sessionId}
+        filename={previewModal.filename}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleCloseDelete}
+        onConfirm={handleConfirmDelete}
+        sessionId={deleteModal.sessionId}
+        filename={deleteModal.filename}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

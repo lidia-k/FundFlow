@@ -44,6 +44,13 @@ export const api = {
     return response.data;
   },
 
+  // Get preview of calculation results
+  getResultsPreview: async (sessionId: string, limit: number = 100): Promise<any> => {
+    const response = await apiClient.get(`/results/${sessionId}/preview?limit=${limit}`);
+    return response.data;
+  },
+
+
   // Download results file
   downloadResults: async (sessionId: string): Promise<Blob> => {
     const response = await apiClient.get(`/results/${sessionId}/download`, {
@@ -55,6 +62,12 @@ export const api = {
   // Get all sessions
   getSessions: async (): Promise<SessionInfo[]> => {
     const response = await apiClient.get<SessionInfo[]>('/sessions');
+    return response.data;
+  },
+
+  // Delete a session
+  deleteSession: async (sessionId: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/sessions/${sessionId}`);
     return response.data;
   },
 

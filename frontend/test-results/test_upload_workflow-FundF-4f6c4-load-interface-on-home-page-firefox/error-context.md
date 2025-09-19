@@ -1,0 +1,63 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - img [ref=e9]
+          - heading "FundFlow" [level=1] [ref=e11]
+        - navigation [ref=e12]:
+          - link "Dashboard" [ref=e13] [cursor=pointer]:
+            - /url: /
+            - img [ref=e14] [cursor=pointer]
+            - text: Dashboard
+          - link "Upload" [ref=e16] [cursor=pointer]:
+            - /url: /upload
+            - img [ref=e17] [cursor=pointer]
+            - text: Upload
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]:
+            - heading "Dashboard" [level=1] [ref=e23]
+            - paragraph [ref=e24]: Welcome to FundFlow SALT calculation platform
+          - link "New Calculation" [ref=e25] [cursor=pointer]:
+            - /url: /upload
+            - img [ref=e26] [cursor=pointer]
+            - text: New Calculation
+        - generic [ref=e28]:
+          - link "Upload File Start a new SALT calculation" [ref=e29] [cursor=pointer]:
+            - /url: /upload
+            - generic [ref=e30] [cursor=pointer]:
+              - img [ref=e31] [cursor=pointer]
+              - generic [ref=e33] [cursor=pointer]:
+                - heading "Upload File" [level=3] [ref=e34] [cursor=pointer]
+                - paragraph [ref=e35] [cursor=pointer]: Start a new SALT calculation
+          - link "Download Template Get the Excel template" [ref=e36] [cursor=pointer]:
+            - /url: /api/template
+            - generic [ref=e37] [cursor=pointer]:
+              - img [ref=e38] [cursor=pointer]
+              - generic [ref=e40] [cursor=pointer]:
+                - heading "Download Template" [level=3] [ref=e41] [cursor=pointer]
+                - paragraph [ref=e42] [cursor=pointer]: Get the Excel template
+          - generic [ref=e44]:
+            - img [ref=e45]
+            - generic [ref=e47]:
+              - heading "Recent Calculations" [level=3] [ref=e48]
+              - paragraph [ref=e49]: 0 calculations
+        - generic [ref=e50]:
+          - heading "Recent Calculations" [level=2] [ref=e52]
+          - generic [ref=e53]:
+            - img [ref=e54]
+            - paragraph [ref=e56]: No calculations yet
+            - link "Start Your First Calculation" [ref=e57] [cursor=pointer]:
+              - /url: /upload
+    - contentinfo [ref=e58]:
+      - generic [ref=e60]:
+        - paragraph [ref=e61]: © 2025 FundFlow. All rights reserved.
+        - paragraph [ref=e62]: Version 1.2.0 (Prototype)
+  - region "Notifications (F8)":
+    - list
+```

@@ -12,6 +12,7 @@ openpyxl==3.1.2
 
 # File handling
 python-multipart==0.0.6
+aiofiles==23.2.0
 
 # Environment management
 python-dotenv==1.0.0
@@ -21,9 +22,10 @@ httpx==0.25.2
 
 # Validation and serialization
 pydantic==2.5.0
+pydantic-settings==2.1.0
 
-# CORS middleware
-python-cors==1.7.0
+# CORS middleware (built into FastAPI)
+# No additional package needed - using fastapi.middleware.cors
 
 # Development dependencies
 pytest==7.4.3

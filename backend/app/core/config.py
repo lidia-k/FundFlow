@@ -1,37 +1,32 @@
-from pydantic_settings import BaseSettings
 from typing import List
 import os
 
 
-class Settings(BaseSettings):
+class Settings:
     # Application
     app_name: str = "FundFlow"
     app_version: str = "1.2.0"
     debug: bool = True
-    
+
     # Database
     database_url: str = "sqlite:///./data/fundflow.db"
-    
+
     # CORS
     allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
-    
+
     # File Upload
     max_upload_size: int = 10485760  # 10MB
     upload_dir: str = "../data/uploads"
     results_dir: str = "../data/results"
     templates_dir: str = "../data/templates"
-    
+
     # Security
     secret_key: str = "your-secret-key-change-in-production"
     access_token_expire_minutes: int = 30
-    
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
 
 settings = Settings()

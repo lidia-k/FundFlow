@@ -30,10 +30,17 @@
     "migration:upgrade": "cd backend && alembic upgrade head",
     "db:seed": "cd backend && python scripts/seed_db.py"
   },
-  "keywords": ["fundflow", "salt", "pe", "private-equity", "tax-calculation"],
+  "keywords": [
+    "fundflow",
+    "salt",
+    "pe",
+    "private-equity",
+    "tax-calculation"
+  ],
   "author": "Lidia",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "shadcn": "^3.3.1"
   }
 }
