@@ -1,7 +1,6 @@
 """Excel file validation and parsing service."""
 
 import re
-import hashlib
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -51,12 +50,12 @@ class ExcelParsingResult:
 class ExcelService:
     """Service for Excel file validation and parsing (v1.3 format)."""
 
-    # Required column headers (v1.3 format)
-    REQUIRED_HEADERS = [
+    # Fixed base column headers for v1.3 format
+    REQUIRED_BASE_HEADERS = [
         "Investor Name",
         "Investor Entity Type",
         "Investor Tax State",
-        "Percentage"
+        "Commitment Percentage"
     ]
 
     # Valid entity types
@@ -72,14 +71,9 @@ class ExcelService:
             'withholding_exemption': {},
             'composite_exemption': {}
         }
+        self._global_withholding_header: Optional[str] = None
+        self._global_composite_header: Optional[str] = None
 
-    def calculate_file_hash(self, file_path: Path) -> str:
-        """Calculate SHA256 hash of file."""
-        sha256_hash = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(chunk)
-        return sha256_hash.hexdigest()
 
     def extract_fund_info_from_filename(self, filename: str) -> Optional[Dict[str, str]]:
         """Extract fund code, quarter, and year from filename."""
@@ -130,34 +124,25 @@ class ExcelService:
         }
 
         for header in normalized_headers:
-            # Distribution pattern: "Distribution" + state abbreviation
-            distribution_match = re.match(r'^Distribution\s+([A-Z]{2})$', header, re.IGNORECASE)
-            if distribution_match:
-                state = distribution_match.group(1).upper()
+            # Distribution pattern: "Distribution" + space + state (e.g., "Distribution TX")
+            if header.startswith('Distribution ') and len(header) == len('Distribution XX'):
+                state = header.split(' ')[1].upper()
                 if state in self.VALID_STATE_CODES:
                     self.detected_columns['distribution'][state] = header
                 continue
 
-            # Withholding Exemption pattern: state + "Withholding Exemption"
-            withholding_match = re.match(r'^([A-Z]{2})\s+Withholding\s+Exemption$', header, re.IGNORECASE)
-            if withholding_match:
-                state = withholding_match.group(1).upper()
+            # Withholding Exemption pattern: state + space + "Withholding Exemption"
+            if header.endswith(' Withholding Exemption') and len(header.split(' ')) == 3:
+                state = header.split(' ')[0].upper()
                 if state in self.VALID_STATE_CODES:
                     self.detected_columns['withholding_exemption'][state] = header
                 continue
 
-            # Composite Exemption pattern: state + "Composite Exemption" (various formats)
-            composite_match = re.match(r'^([A-Z]{2})\s+Composite\s*Exemption$', header, re.IGNORECASE)
-            if composite_match:
-                state = composite_match.group(1).upper()
-                if state in self.VALID_STATE_CODES:
-                    self.detected_columns['composite_exemption'][state] = header
-                continue
-
-            # Alternative composite pattern: state + "CompositeExemption" (no space)
-            composite_match2 = re.match(r'^([A-Z]{2})\s*CompositeExemption$', header, re.IGNORECASE)
-            if composite_match2:
-                state = composite_match2.group(1).upper()
+            # Composite Exemption pattern: state + "Composite Exemption" (with or without space)
+            # Handles both "CO Composite Exemption" and "CO CompositeExemption"
+            if (header.endswith(' Composite Exemption') and len(header.split(' ')) == 3) or \
+               (header.endswith('CompositeExemption') and len(header.split(' ')) == 2):
+                state = header.split(' ')[0].upper()
                 if state in self.VALID_STATE_CODES:
                     self.detected_columns['composite_exemption'][state] = header
                 continue
@@ -184,11 +169,12 @@ class ExcelService:
         if not self.detect_dynamic_columns(df):
             return False
 
-        # Check required base headers
+        # Check required base headers (fixed headers)
         missing_headers = []
-        for required_header in self.REQUIRED_HEADERS:
-            normalized_required = self.normalize_header(required_header)
-            if normalized_required not in normalized_headers:
+        normalized_required = [self.normalize_header(col) for col in self.REQUIRED_BASE_HEADERS]
+
+        for required_header in normalized_required:
+            if required_header not in normalized_headers:
                 missing_headers.append(required_header)
 
         if missing_headers:
@@ -338,8 +324,8 @@ class ExcelService:
         }
 
         # Parse percentage (ignore for processing but store)
-        if 'Percentage' in row_data:
-            parsed_row['percentage'] = self.parse_percentage_value(row_data['Percentage'])
+        if 'Commitment Percentage' in row_data:
+            parsed_row['commitment_percentage'] = self.parse_percentage_value(row_data['Commitment Percentage'])
 
         # Parse distribution amounts by state
         parsed_row['distributions'] = {}

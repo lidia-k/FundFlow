@@ -18,7 +18,6 @@ class SessionService:
         user_id: int,
         upload_filename: str,
         original_filename: str,
-        file_hash: str,
         file_size: int
     ) -> UserSession:
         """Create a new upload session."""
@@ -27,7 +26,6 @@ class SessionService:
             user_id=user_id,
             upload_filename=upload_filename,
             original_filename=original_filename,
-            file_hash=file_hash,
             file_size=file_size,
             status=UploadStatus.QUEUED,
             progress_percentage=0
@@ -87,12 +85,6 @@ class SessionService:
         session.valid_rows = valid_rows
         return True
 
-    def check_file_duplicate(self, file_hash: str, user_id: int) -> Optional[UserSession]:
-        """Check if file hash already exists for user (idempotency)."""
-        return self.db.query(UserSession).filter(
-            UserSession.file_hash == file_hash,
-            UserSession.user_id == user_id
-        ).first()
 
     def get_user_sessions(
         self,
@@ -132,3 +124,33 @@ class SessionService:
             "completed_at": session.completed_at.isoformat() if session.completed_at else None,
             "error_message": session.error_message
         }
+
+    def delete_session(self, session_id: str, user_id: int) -> bool:
+        """Delete a session and all its related data."""
+        session = self.db.query(UserSession).filter(
+            UserSession.session_id == session_id,
+            UserSession.user_id == user_id
+        ).first()
+
+        if not session:
+            return False
+
+        # Delete related records (cascading delete should handle this automatically
+        # if foreign key constraints are set up properly, but we'll be explicit)
+
+        # Delete distributions
+        from ..models.distribution import Distribution
+        self.db.query(Distribution).filter(
+            Distribution.session_id == session_id
+        ).delete()
+
+        # Delete validation errors
+        from ..models.validation_error import ValidationError
+        self.db.query(ValidationError).filter(
+            ValidationError.session_id == session_id
+        ).delete()
+
+        # Delete the session itself
+        self.db.delete(session)
+
+        return True

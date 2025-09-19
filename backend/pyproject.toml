@@ -69,3 +69,11 @@ ignore = ["E203", "W503"]
 
 [tool.ruff.isort]
 profile = "black"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "vulture>=2.14",
+]

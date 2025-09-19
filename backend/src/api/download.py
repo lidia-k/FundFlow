@@ -3,7 +3,7 @@
 import io
 import csv
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from ..database.connection import get_db

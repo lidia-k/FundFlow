@@ -14,8 +14,6 @@ services:
     environment:
       - DATABASE_URL=sqlite:///./data/fundflow.db
       - DEBUG=true
-    depends_on:
-      - db
     networks:
       - fundflow-network
 
@@ -32,14 +30,6 @@ services:
       - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
-    networks:
-      - fundflow-network
-
-  db:
-    image: alpine:latest
-    volumes:
-      - ./data:/data
-    command: /bin/sh -c "mkdir -p /data && touch /data/fundflow.db && tail -f /dev/null"
     networks:
       - fundflow-network
 

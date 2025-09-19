@@ -1,5 +1,7 @@
 """Results API endpoint for retrieving session results."""
 
+import os
+from pathlib import Path
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -7,6 +9,7 @@ from ..database.connection import get_db
 from ..services.session_service import SessionService
 from ..services.distribution_service import DistributionService
 from ..services.validation_service import ValidationService
+from ..services.excel_service import ExcelService
 
 router = APIRouter()
 
@@ -161,3 +164,6 @@ async def get_results_preview(
         "preview_limit": limit,
         "showing_count": len(preview_data)
     }
+
+
+

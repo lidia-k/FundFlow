@@ -14,27 +14,50 @@ FundFlow is an AI-powered automation platform designed to solve manual SALT (Sta
 ```
 FundFlow/
 ├── backend/                 # FastAPI backend application
-│   ├── app/
-│   │   ├── api/            # API route handlers
+│   ├── app/                # FastAPI app configuration
 │   │   ├── core/           # Core configuration and utilities
-│   │   ├── models/         # Pydantic models and database schemas
-│   │   ├── services/       # Business logic and SALT calculations
-│   │   └── utils/          # Utility functions
+│   │   └── main.py         # FastAPI application entry point
+│   ├── src/                # Source code (main implementation)
+│   │   ├── api/            # API route handlers (upload, results, health, etc.)
+│   │   ├── database/       # Database connection and setup
+│   │   ├── models/         # Pydantic models and data schemas
+│   │   └── services/       # Business logic and SALT calculations
+│   ├── data/               # Data storage and uploads
+│   │   └── uploads/        # Uploaded Excel files
 │   ├── tests/              # Backend tests (pytest)
-│   └── requirements.txt    # Python dependencies
+│   ├── alembic/            # Database migrations
+│   ├── requirements.txt    # Python dependencies
+│   └── pyproject.toml      # Python project configuration
 ├── frontend/               # React frontend application
 │   ├── src/
 │   │   ├── components/     # Reusable React components
+│   │   │   └── ui/         # Shadcn UI components
 │   │   ├── pages/          # Page components (Upload, Dashboard, Results)
 │   │   ├── api/            # API client utilities
-│   │   └── types/          # TypeScript type definitions
-│   ├── tests/              # Frontend tests (Jest)
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── types/          # TypeScript type definitions
+│   │   └── utils/          # Frontend utility functions
+│   ├── tests/              # Frontend tests (Jest + Playwright)
+│   │   ├── e2e/            # End-to-end tests
+│   │   └── fixtures/       # Test data and fixtures
+│   ├── public/             # Static assets
 │   └── package.json        # Node.js dependencies
-├── data/                   # Sample data and templates
+├── shared/                 # Shared code between frontend/backend
+│   ├── types/              # Shared TypeScript types
+│   └── utils/              # Shared utility functions
+├── docker/                 # Docker configuration files
+├── specs/                  # Project specifications and documentation
 ├── docs/                   # Project documentation
-│   └── architecture/       # Architecture decisions and design docs
+├── data/                   # Sample data and templates
+├── scripts/                # Development and deployment scripts
+├── archive/                # Archived files
+├── .specify/               # Specify AI configuration
+├── .serena/                # Serena MCP configuration
+├── .claude/                # Claude Code configuration
 ├── docker-compose.yml      # Development environment
-└── Makefile               # Development commands
+├── docker-compose.override.yml  # Local development overrides
+├── Makefile               # Development commands
+└── package.json           # Root package.json for shared dependencies
 ```
 
 ## Architecture Overview
@@ -46,7 +69,7 @@ FundFlow/
 - **Deployment**: Docker + Docker Compose for development
 
 **Key Design Principles**:
-1. Simplicity over complexity
+1. Simplicity over complexity. Apply **YAGNI**: build only what’s needed.  
 2. Rapid prototyping for user feedback
 3. User experience validation focus
 4. Future scalability considerations
@@ -74,23 +97,28 @@ FundFlow/
 ## API Reference
 ### Core Endpoints
 - `POST /api/upload` - Upload Excel file for processing
-- `GET /api/calculations/{id}` - Get calculation status and results
-- `GET /api/calculations/{id}/download` - Download results as Excel
+- `GET /api/results/{session_id}` - Get processing results and status
+- `GET /api/results/{session_id}/preview` - Preview processing results
+- `GET /api/results/{session_id}/download` - Download results as Excel
+- `GET /api/results/{session_id}/download-errors` - Download validation errors
 - `GET /api/template` - Download Excel template
 - `GET /api/health` - Health check
+- `GET /api/health/simple` - Simple health check
 
 ### Data Models
-- **UploadFile**: Excel file metadata and validation
-- **Calculation**: SALT calculation job with status tracking
-- **Portfolio**: Portfolio company data structure
-- **SALTResult**: Calculated tax allocations and results
+- **UserSession**: Upload session tracking with status and progress
+- **Investor**: Persistent investor entities with name, entity type, and tax state
+- **Distribution**: Quarterly distribution amounts by jurisdiction
+- **ValidationError**: File validation errors with severity levels
+- **UploadStatus**: Enum for tracking upload/processing stages
 
 ## Database Schema
 ### Key Tables
-- `calculations` - Calculation jobs (id, status, created_at, file_path, results_path)
-- `portfolios` - Portfolio company data (id, name, state, calculation_id)
-- `salt_rules` - Pre-stored EY SALT calculation rules (state, rule_type, rate)
-- `results` - Calculated results (id, portfolio_id, state, allocation, tax_amount)
+- `user_sessions` - Upload sessions (session_id, user_id, status, progress, file info)
+- `users` - User accounts (id, email, name, created_at)
+- `investors` - Persistent investor entities (id, name, entity_type, tax_state)
+- `distributions` - Distribution data (id, investor_id, session_id, jurisdiction, amount, exemptions)
+- `validation_errors` - Processing errors (id, session_id, row_number, severity, message)
 
 ## Coding Standards & Conventions
 ### Python (Backend)
@@ -159,6 +187,9 @@ make lint-fix        # Auto-fix linting issues
 - ✅ **Docker Configuration Fixed** - Resolved pydantic-settings parsing errors, dependency conflicts, and health checks
 - ✅ **v1.3 Format Support** - Updated ExcelService with flexible column detection for dynamic state-based parsing
 - ✅ **Project Onboarding Complete** - Comprehensive memory files created with project overview, tech stack, conventions, and development workflows
+- ✅ **Sessions API Endpoint** - Added GET /sessions endpoint to fix Dashboard 404 error when loading user sessions
+- ✅ **Dynamic Column Preview** - Enhanced file preview modal to dynamically display columns based on uploaded file content instead of hardcoded TX/NM/CO
+- ✅ **Excel Validation Improvements** - Refactored Excel processor with fail-fast validation and simplified entity type validation
 - 🎯 **Ready for user validation**: Working end-to-end prototype with all containers healthy
 
 ## Prototype Scope & Limitations
@@ -192,16 +223,15 @@ make lint-fix        # Auto-fix linting issues
 - **Processing**: 30min processing for typical files (~10 portfolios, ~20 LPs)
 
 ### Critical Constraints
-- **EY Data**: SALT rules are pre-stored in the system - users only upload portfolio data
 - **Processing**: Synchronous processing (no async/queuing for prototype)
 - **Security**: Basic file validation, no sensitive data storage yet
 - **Future Migration**: Code should be structured to facilitate v1.3 microservices transition
 
 ## Common Development Tasks
 ### Adding New API Endpoint
-1. Create route in `backend/app/api/`
-2. Add Pydantic models in `backend/app/models/`
-3. Implement service logic in `backend/app/services/`
+1. Create route in `backend/src/api/`
+2. Add Pydantic models in `backend/src/models/`
+3. Implement service logic in `backend/src/services/`
 4. Add tests in `backend/tests/`
 5. Update API client in `frontend/src/api/`
 
@@ -213,7 +243,7 @@ make lint-fix        # Auto-fix linting issues
 5. Export from component index file
 
 ### Database Changes
-1. Update models in `backend/app/models/`
+1. Update models in `backend/src/models/`
 2. Create migration script if needed
 3. Update seed data in development
 4. Test with sample data
@@ -249,12 +279,20 @@ make logs                     # All application logs
 - Always run in headless mode
 
 ## MCP Context 7 
-Always use context7 when I need code generation, setup or configuration steps, or
-library/API documentation. This means you should automatically use the Context7 MCP
-tools to resolve library id and get library docs without me having to explicitly ask.
+Always use context7 when I need code generation, setup or configuration steps, or library/API documentation. This means you should automatically use the Context7 MCP tools to resolve library id and get library docs without me having to explicitly ask.
 
-## Key Rules
-1. Always use uv for package management operations
-2. Never use pip install directly - use uv add instead
-3. Keep .venv in the project root directory
-4. Ensure virtual environment is activated before running Python code
+## IMPORTANT Key Rules
+- When unsure about implementation details, always ask the developer first.
+- Never modify test code unless explicitly instructed by the user.
+- Never change API names or parameters unless explicitly instructed by the user.
+- DO NOT over-engineer or add extra logic beyond what the user asked; if more complexity seems necessary, confirm with the user first.
+- Never migrate data on your own initiative.
+- Always use uv for package management operations
+- Never use pip install directly - use uv add instead
+- Keep .venv in the project root directory
+- Ensure virtual environment is activated before running Python code
+
+## Test-First (Non-Negotiable)
+- **Order:** Unit → Contract → Integration → E2E → Implementation.  
+- Write tests first (Red-Green-Refactor).  
+- All merges require passing tests and proof of the TDD cycle.  

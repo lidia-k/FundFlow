@@ -26,13 +26,14 @@ class InvestorEntityType(Enum):
     JOINT_TENANCY_TENANCY_IN_COMMON = ("Joint Tenancy / Tenancy in Common", "Individual")
     GOVERNMENT_BENEFIT_PLAN = ("Government Benefit Plan", "Exempt Org")
     IRA_KEOGH = ("IRA/Keogh", "IRA")
+    IRA = ("IRA", "IRA")
     EXEMPT_ORGANIZATION_BENEFIT = ("Exempt Organization_Benefit", "Exempt Org")
     LLP = ("LLP", "Partnership")
     BENEFIT_PLAN_INVESTOR_ERISA_TITLE_I = ("Benefit Plan Investor [ERISA Title I Plan]", "Exempt Org")
     GRANTOR_TRUST = ("Grantor Trust", "Individual")
     LLC_TAXED_AS_CORPORATION = ("LLC_Taxed as Corporation", "Corporation")
     LLC_TAXED_AS_PARTNERSHIP_ALT = ("LLC – Taxed as Partnership", "Partnership")
-    ESTATE = ("Estate", "Partnership")
+    ESTATE = ("Estate", "Estate")
     BENEFIT_PLAN_INVESTOR_PLAN_ASSETS = ("Benefit Plan Investor [Plan Assets Entity_ERISA 3(42)]", "Exempt Org")
 
     @classmethod
@@ -107,3 +108,23 @@ class USJurisdiction(Enum):
     WI = "WI"
     WY = "WY"
     DC = "DC"
+
+
+class RuleSetStatus(Enum):
+    """SALT rule set status enumeration."""
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class Quarter(Enum):
+    """Quarter enumeration for SALT rule sets."""
+    Q1 = "Q1"
+    Q2 = "Q2"
+    Q3 = "Q3"
+    Q4 = "Q4"
+
+
+class IssueSeverity(Enum):
+    """Validation issue severity enumeration."""
+    ERROR = "error"
+    WARNING = "warning"
