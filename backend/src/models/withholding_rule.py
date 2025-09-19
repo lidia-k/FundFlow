@@ -42,7 +42,7 @@ class WithholdingRule(Base):
     # Table constraints
     __table_args__ = (
         CheckConstraint(
-            "tax_rate >= 0.0000 AND tax_rate <= 10.0000",
+            "tax_rate >= 0.0000 AND tax_rate <= 1.0000",
             name="ck_withholding_rule_tax_rate_range"
         ),
         CheckConstraint(
