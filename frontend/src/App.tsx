@@ -6,7 +6,6 @@ import Results from './pages/Results';
 import SaltRulesDashboard from './pages/SaltRulesDashboard';
 import SaltRulesUpload from './pages/SaltRulesUpload';
 import RuleSetDetails from './pages/RuleSetDetails';
-import RulePreview from './pages/RulePreview';
 import { Toaster } from '@/components/ui';
 
 function App() {
@@ -20,7 +19,6 @@ function App() {
           <Route path="/salt-rules" element={<SaltRulesDashboard />} />
           <Route path="/salt-rules/upload" element={<SaltRulesUpload />} />
           <Route path="/salt-rules/:ruleSetId" element={<RuleSetDetails />} />
-          <Route path="/salt-rules/:ruleSetId/preview" element={<RulePreview />} />
         </Routes>
       </Layout>
       <Toaster />

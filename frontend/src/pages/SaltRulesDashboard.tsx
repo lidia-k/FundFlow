@@ -161,7 +161,7 @@ export default function SaltRulesDashboard() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">SALT Rules Management</h1>
           <p className="mt-2 text-gray-600">
-            Manage SALT tax rules matrix upload, validation, and publishing
+            Manage SALT tax rules matrix upload and publishing
           </p>
         </div>
         <Link to="/salt-rules/upload" className="btn-primary">

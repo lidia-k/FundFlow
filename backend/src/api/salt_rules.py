@@ -14,7 +14,6 @@ from ..database.connection import get_db
 from ..services.excel_processor import ExcelProcessor
 from ..services.validation_service import ValidationService
 from ..services.file_service import FileService
-from ..services.comparison_service import ComparisonService
 from ..services.rule_set_service import RuleSetService
 from ..models.salt_rule_set import SaltRuleSet, RuleSetStatus
 from ..models.source_file import SourceFile
@@ -25,12 +24,6 @@ router = APIRouter(prefix="/salt-rules", tags=["SALT Rules"])
 
 
 # Request/Response Models
-class PublishRequest(BaseModel):
-    """Request model for publishing rule set."""
-    effective_date: Optional[date] = None
-    confirm_archive: bool = False
-
-
 class UploadResponse(BaseModel):
     """Response model for upload endpoint."""
     rule_set_id: str = Field(alias="ruleSetId")
@@ -241,172 +234,7 @@ async def upload_salt_rules(
 
 
 
-@router.get("/{rule_set_id}/preview")
-async def get_rule_set_preview(
-    rule_set_id: str,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """Get preview of rule set changes compared to current active rules."""
-    try:
-        # Validate rule set exists
-        rule_set = db.get(SaltRuleSet, rule_set_id)
-        if not rule_set:
-            raise HTTPException(
-                status_code=404,
-                detail="Rule set not found"
-            )
 
-        comparison_service = ComparisonService(db)
-        preview_result = comparison_service.get_rule_set_preview(rule_set_id)
-
-        return preview_result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting rule set preview: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
-
-
-@router.post("/{rule_set_id}/publish")
-async def publish_rule_set(
-    rule_set_id: str,
-    publish_request: PublishRequest,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """Publish draft rule set to active status."""
-    try:
-        # Validate rule set exists
-        rule_set = db.get(SaltRuleSet, rule_set_id)
-        if not rule_set:
-            raise HTTPException(
-                status_code=404,
-                detail="Rule set not found"
-            )
-
-        if rule_set.status != RuleSetStatus.ACTIVE:
-            raise HTTPException(
-                status_code=400,
-                detail="Only active rule sets can be republished"
-            )
-
-        # Use RuleSetService to handle publication
-        rule_set_service = RuleSetService(db)
-        result = rule_set_service.publish_rule_set(
-            rule_set_id,
-            publish_request.effective_date,
-            publish_request.confirm_archive
-        )
-
-        return {
-            "ruleSetId": result["ruleSetId"],
-            "status": result["status"],
-            "publishedAt": result["publishedAt"],
-            "effectiveDate": result["effectiveDate"],
-            "resolvedRulesGenerated": result["resolvedRulesGenerated"],
-            "archivedPrevious": result["archivedPrevious"],
-            "message": "Rule set published successfully"
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error publishing rule set: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
-
-
-@router.get("")
-async def list_rule_sets(
-    year: Optional[int] = Query(None),
-    quarter: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    limit: int = Query(50, le=100),
-    offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """List SALT rule sets with optional filtering."""
-    try:
-        query = db.query(SaltRuleSet)
-
-        # Apply filters
-        if year:
-            if year < 2020 or year > 2030:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Year must be between 2020 and 2030"
-                )
-            query = query.filter(SaltRuleSet.year == year)
-
-        if quarter:
-            try:
-                quarter_enum = Quarter(quarter)
-                query = query.filter(SaltRuleSet.quarter == quarter_enum)
-            except ValueError:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Quarter must be one of: Q1, Q2, Q3, Q4"
-                )
-
-        if status:
-            try:
-                status_enum = RuleSetStatus(status)
-                query = query.filter(SaltRuleSet.status == status_enum)
-            except ValueError:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Status must be one of: active, archived"
-                )
-
-        # Get total count
-        total_count = query.count()
-
-        # Apply pagination and ordering
-        rule_sets = (
-            query.order_by(SaltRuleSet.created_at.desc())
-            .offset(offset)
-            .limit(limit)
-            .all()
-        )
-
-        # Format response
-        items = []
-        for rule_set in rule_sets:
-            items.append({
-                "id": str(rule_set.id),
-                "year": rule_set.year,
-                "quarter": rule_set.quarter.value,
-                "version": rule_set.version,
-                "status": rule_set.status.value,
-                "effectiveDate": rule_set.effective_date.isoformat(),
-                "ruleCountWithholding": rule_set.rule_count_withholding,
-                "ruleCountComposite": rule_set.rule_count_composite,
-                "createdAt": rule_set.created_at.isoformat() + "Z",
-                "publishedAt": rule_set.published_at.isoformat() + "Z" if rule_set.published_at else None,
-                "description": rule_set.description
-            })
-
-        return {
-            "items": items,
-            "totalCount": total_count,
-            "limit": limit,
-            "offset": offset,
-            "hasMore": offset + limit < total_count
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error listing rule sets: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
 
 
 @router.get("/{rule_set_id}")

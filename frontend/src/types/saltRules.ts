@@ -89,29 +89,6 @@ export interface ValidationResponse {
   issues: ValidationIssue[];
 }
 
-export interface RulePreview {
-  ruleSetId: string;
-  changes: {
-    added: number;
-    modified: number;
-    removed: number;
-  };
-  preview: {
-    addedRules: PreviewRule[];
-    modifiedRules: PreviewRule[];
-    removedRules: PreviewRule[];
-  };
-}
-
-export interface PreviewRule {
-  id: string;
-  state: string;
-  entity: string;
-  taxType: string;
-  rate: number;
-  description?: string;
-  effectiveDate?: string;
-}
 
 export interface PublishRequest {
   effectiveDate?: string;

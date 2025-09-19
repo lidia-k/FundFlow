@@ -62,11 +62,6 @@ export default function RuleSetDetails() {
     }
   };
 
-  const handlePreview = () => {
-    if (ruleSetId) {
-      navigate(`/salt-rules/${ruleSetId}/preview`);
-    }
-  };
 
   const handlePublish = async () => {
     if (!ruleSetId) return;
@@ -157,7 +152,6 @@ export default function RuleSetDetails() {
     );
   }
 
-  const canPreview = ruleSet.status === 'validated' || ruleSet.status === 'published';
   const canPublish = ruleSet.status === 'validated';
   const hasValidationIssues = validation && validation.issues.some(issue => issue.severity === 'error');
 
@@ -176,12 +170,6 @@ export default function RuleSetDetails() {
         </div>
 
         <div className="flex items-center space-x-3">
-          {canPreview && (
-            <Button variant="outline" onClick={handlePreview}>
-              <Eye className="h-4 w-4 mr-2" />
-              Preview Rules
-            </Button>
-          )}
 
           {canPublish && !hasValidationIssues && (
             <Button onClick={handlePublish} disabled={publishing}>

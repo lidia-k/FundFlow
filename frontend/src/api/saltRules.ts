@@ -2,7 +2,6 @@ import axios from 'axios';
 import type {
   RuleSet,
   ValidationResponse,
-  RulePreview,
   PublishRequest,
   UploadResponse,
   SaltRulesListResponse
@@ -45,13 +44,6 @@ export const saltRulesApi = {
     return response.data;
   },
 
-
-  // Get preview of changes before publishing
-  getPreview: async (ruleSetId: string): Promise<RulePreview> => {
-    const response = await saltRulesClient.get<RulePreview>(`/${ruleSetId}/preview`);
-    return response.data;
-  },
-
   // Publish rule set
   publish: async (ruleSetId: string, data: PublishRequest): Promise<{ message: string; publishedAt: string }> => {
     const response = await saltRulesClient.post(`/${ruleSetId}/publish`, data);
@@ -70,14 +62,6 @@ export const saltRulesApi = {
   getDetails: async (ruleSetId: string, includeRules: boolean = false): Promise<RuleSet> => {
     const response = await saltRulesClient.get<RuleSet>(`/${ruleSetId}`, {
       params: { include_rules: includeRules }
-    });
-    return response.data;
-  },
-
-  // Download validation results as CSV
-  downloadValidationResults: async (ruleSetId: string): Promise<Blob> => {
-    const response = await saltRulesClient.get(`/${ruleSetId}/validation-export`, {
-      responseType: 'blob',
     });
     return response.data;
   },
