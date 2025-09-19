@@ -412,13 +412,14 @@ async def list_rule_sets(
 @router.get("/{rule_set_id}")
 async def get_rule_set_detail(
     rule_set_id: str,
+    include_rules: bool = Query(False, description="Include actual rule data in response"),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """Get detailed information about a specific rule set."""
     try:
         # Use RuleSetService to get detailed information
         rule_set_service = RuleSetService(db)
-        result = rule_set_service.get_rule_set_detail(rule_set_id)
+        result = rule_set_service.get_rule_set_detail(rule_set_id, include_rules)
 
         return result
 

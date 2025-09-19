@@ -362,7 +362,7 @@ class ExcelProcessor:
         state_name = str(row['State']).strip()
         state_abbrev = str(row['State Abbrev']).strip().upper()
         state_code = USJurisdiction(state_abbrev)
-    
+
         # Extract state-level thresholds
         income_threshold = Decimal('0.00')
         tax_threshold = Decimal('0.00')
@@ -372,16 +372,16 @@ class ExcelProcessor:
             if not pd.isna(income_val):
                 try:
                     income_threshold = Decimal(str(income_val))
-                except (ValueError, InvalidOperation):
-                    pass
+                except (ValueError, InvalidOperation) as e:
+                    raise ValueError(f"Invalid income threshold value '{income_val}' for state '{state_name}': {str(e)}")
 
         if self.WITHHOLDING_TAX_THRESHOLD_COL in df.columns:
             tax_val = row.get(self.WITHHOLDING_TAX_THRESHOLD_COL)
             if not pd.isna(tax_val):
                 try:
                     tax_threshold = Decimal(str(tax_val))
-                except (ValueError, InvalidOperation):
-                    pass
+                except (ValueError, InvalidOperation) as e:
+                    raise ValueError(f"Invalid tax threshold value '{tax_val}' for state '{state_name}': {str(e)}")
 
         # Get entity type columns for this sheet
         entity_columns = self.get_entity_type_columns("Withholding", df)
@@ -402,9 +402,8 @@ class ExcelProcessor:
                             income_threshold=income_threshold,
                             tax_threshold=tax_threshold
                         ))
-                except (ValueError, InvalidOperation):
-                    # Skip invalid rates
-                    continue
+                except (ValueError, InvalidOperation) as e:
+                    raise ValueError(f"Invalid tax rate value '{rate_value}' for state '{state_name}', entity '{entity_coding}': {str(e)}")
 
         return rules
 
@@ -426,8 +425,8 @@ class ExcelProcessor:
             if not pd.isna(income_val):
                 try:
                     income_threshold = Decimal(str(income_val))
-                except (ValueError, InvalidOperation):
-                    pass
+                except (ValueError, InvalidOperation) as e:
+                    raise ValueError(f"Invalid income threshold value '{income_val}' for state '{state_name}': {str(e)}")
 
         if self.COMPOSITE_MANDATORY_FILING_COL in df.columns:
             mandatory_val = row.get(self.COMPOSITE_MANDATORY_FILING_COL)
@@ -454,9 +453,8 @@ class ExcelProcessor:
                             income_threshold=income_threshold,
                             mandatory_filing=mandatory_filing
                         ))
-                except (ValueError, InvalidOperation):
-                    # Skip invalid rates
-                    continue
+                except (ValueError, InvalidOperation) as e:
+                    raise ValueError(f"Invalid tax rate value '{rate_value}' for state '{state_name}', entity '{entity_coding}': {str(e)}")
 
         return rules
 

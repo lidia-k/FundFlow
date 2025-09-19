@@ -4,6 +4,7 @@ import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon, TrashIcon } from '@he
 import { saltRulesApi } from '../api/saltRules';
 import type { RuleSet } from '../types/saltRules';
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import SaltSetDetails from './SaltSetDetails';
 
 export default function SaltRulesDashboard() {
   const [ruleSets, setRuleSets] = useState<RuleSet[]>([]);
@@ -19,6 +20,13 @@ export default function SaltRulesDashboard() {
     ruleSetName: '',
   });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [detailsModal, setDetailsModal] = useState<{
+    isOpen: boolean;
+    ruleSetId: string;
+  }>({
+    isOpen: false,
+    ruleSetId: '',
+  });
 
   useEffect(() => {
     loadRuleSets();
@@ -130,6 +138,20 @@ export default function SaltRulesDashboard() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleViewDetails = (ruleSet: RuleSet) => {
+    setDetailsModal({
+      isOpen: true,
+      ruleSetId: ruleSet.id,
+    });
+  };
+
+  const handleCloseDetails = () => {
+    setDetailsModal({
+      isOpen: false,
+      ruleSetId: '',
+    });
   };
 
   return (
@@ -269,12 +291,12 @@ export default function SaltRulesDashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-4">
-                        <Link
-                          to={`/salt-rules/${ruleSet.id}`}
+                        <button
+                          onClick={() => handleViewDetails(ruleSet)}
                           className="text-primary-600 hover:text-primary-900"
                         >
                           View Details
-                        </Link>
+                        </button>
                         {ruleSet.status !== 'active' && (
                           <button
                             onClick={() => handleDeleteClick(ruleSet)}
@@ -376,6 +398,13 @@ export default function SaltRulesDashboard() {
           </div>
         </div>
       )}
+
+      {/* Rule Set Details Modal */}
+      <SaltSetDetails
+        isOpen={detailsModal.isOpen}
+        onClose={handleCloseDetails}
+        ruleSetId={detailsModal.ruleSetId}
+      />
     </div>
   );
 }

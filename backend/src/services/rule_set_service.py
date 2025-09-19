@@ -22,12 +22,13 @@ class RuleSetService:
         """Initialize the rule set service."""
         self.db = db
 
-    def get_rule_set_detail(self, rule_set_id: str) -> Dict[str, Any]:
+    def get_rule_set_detail(self, rule_set_id: str, include_rules: bool = False) -> Dict[str, Any]:
         """
         Get detailed information about a rule set.
 
         Args:
             rule_set_id: UUID of the rule set
+            include_rules: Whether to include actual rule data (default: False)
 
         Returns:
             Dictionary with detailed rule set information
@@ -68,7 +69,8 @@ class RuleSetService:
             .count()
         )
 
-        return {
+        # Prepare base result
+        result = {
             "id": str(rule_set.id),
             "year": rule_set.year,
             "quarter": rule_set.quarter.value,
@@ -95,11 +97,58 @@ class RuleSetService:
                 "id": str(rule_set.source_file.id),
                 "filename": rule_set.source_file.filename,
                 "fileSize": rule_set.source_file.file_size,
-                "sha256Hash": rule_set.source_file.sha256_hash,
+                "contentType": rule_set.source_file.content_type,
                 "uploadTimestamp": rule_set.source_file.upload_timestamp.isoformat() + "Z",
                 "uploadedBy": rule_set.source_file.uploaded_by
             } if rule_set.source_file else None
         }
+
+        # Include actual rule data if requested
+        if include_rules:
+            # Fetch withholding rules
+            withholding_rules = (
+                self.db.query(WithholdingRule)
+                .filter(WithholdingRule.rule_set_id == rule_set_id)
+                .order_by(WithholdingRule.state, WithholdingRule.entity_type)
+                .all()
+            )
+
+            # Fetch composite rules
+            composite_rules = (
+                self.db.query(CompositeRule)
+                .filter(CompositeRule.rule_set_id == rule_set_id)
+                .order_by(CompositeRule.state, CompositeRule.entity_type)
+                .all()
+            )
+
+            # Add rules to result
+            result["withholdingRules"] = [
+                {
+                    "id": str(rule.id),
+                    "state": rule.state,
+                    "stateCode": rule.state_code.value,
+                    "entityType": rule.entity_type,
+                    "taxRate": float(rule.tax_rate),
+                    "incomeThreshold": float(rule.income_threshold),
+                    "taxThreshold": float(rule.tax_threshold)
+                }
+                for rule in withholding_rules
+            ]
+
+            result["compositeRules"] = [
+                {
+                    "id": str(rule.id),
+                    "state": rule.state,
+                    "stateCode": rule.state_code.value,
+                    "entityType": rule.entity_type,
+                    "taxRate": float(rule.tax_rate),
+                    "incomeThreshold": float(rule.income_threshold),
+                    "mandatoryFiling": rule.mandatory_filing
+                }
+                for rule in composite_rules
+            ]
+
+        return result
 
     def publish_rule_set(
         self,

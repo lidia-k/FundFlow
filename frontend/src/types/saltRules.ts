@@ -1,3 +1,53 @@
+export interface WithholdingRule {
+  id: string;
+  state: string;
+  stateCode: string;
+  entityType: string;
+  taxRate: number;
+  incomeThreshold: number;
+  taxThreshold: number;
+}
+
+export interface CompositeRule {
+  id: string;
+  state: string;
+  stateCode: string;
+  entityType: string;
+  taxRate: number;
+  incomeThreshold: number;
+  mandatoryFiling: boolean;
+}
+
+export interface StateWithholdingData {
+  state: string;
+  stateCode: string;
+  individual: number;
+  estate: number;
+  trust: number;
+  partnership: number;
+  sCorporation: number;
+  corporation: number;
+  exemptOrg: number;
+  ira: number;
+  incomeThreshold: number;
+  taxThreshold: number;
+}
+
+export interface StateCompositeData {
+  state: string;
+  stateCode: string;
+  individual: number;
+  estate: number;
+  trust: number;
+  partnership: number;
+  sCorporation: number;
+  corporation: number;
+  exemptOrg: number;
+  ira: number;
+  incomeThreshold: number;
+  mandatory: boolean;
+}
+
 export interface RuleSet {
   id: string;
   status: RuleSetStatus;
@@ -10,6 +60,8 @@ export interface RuleSet {
   ruleCountWithholding: number;
   ruleCountComposite: number;
   description?: string;
+  withholdingRules?: WithholdingRule[];
+  compositeRules?: CompositeRule[];
 }
 
 export type RuleSetStatus = 'draft' | 'active' | 'archived';

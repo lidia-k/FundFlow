@@ -67,8 +67,10 @@ export const saltRulesApi = {
   },
 
   // Get specific rule set details
-  getDetails: async (ruleSetId: string): Promise<RuleSet> => {
-    const response = await saltRulesClient.get<RuleSet>(`/${ruleSetId}`);
+  getDetails: async (ruleSetId: string, includeRules: boolean = false): Promise<RuleSet> => {
+    const response = await saltRulesClient.get<RuleSet>(`/${ruleSetId}`, {
+      params: { include_rules: includeRules }
+    });
     return response.data;
   },
 
