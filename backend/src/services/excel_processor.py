@@ -100,19 +100,10 @@ class ExcelProcessor:
                 entity_display = col[len(prefix):]
 
                 # Map to entity type coding value
-                try:
-                    # Find matching entity type by display value or coding value
-                    for entity_type in InvestorEntityType:
-                        if entity_type.coding == entity_display:
-                            entity_columns[col] = entity_type.coding
-                            break
-                    else:
-                        # If no exact match, try to find by coding value directly
-                        if entity_display in self.VALID_ENTITY_TYPES:
-                            entity_columns[col] = entity_display
-                except Exception:
-                    # Skip invalid entity types
-                    continue
+                if entity_display not in self.VALID_ENTITY_TYPES:
+                    raise ValueError(f"Invalid entity type '{entity_display}' found in column '{col}' of {sheet_name} sheet. Must be one of: {', '.join(self.VALID_ENTITY_TYPES)}")
+                else: 
+                    entity_columns[col] = entity_display
 
         return entity_columns
 
@@ -196,7 +187,7 @@ class ExcelProcessor:
                 column_name="Entity Type Columns",
                 error_code="NO_ENTITY_COLUMNS",
                 severity=IssueSeverity.ERROR,
-                message=f"No valid entity type columns found in {sheet_name} sheet",
+                message=f"No entity type columns found in {sheet_name} sheet. Expected columns with prefix '{self.WITHHOLDING_ENTITY_PREFIX if sheet_name == 'Withholding' else self.COMPOSITE_ENTITY_PREFIX}'",
                 field_value=None
             ))
 
@@ -334,45 +325,6 @@ class ExcelProcessor:
 
         return issues
 
-    def validate_rate_ranges(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
-        """Validate tax rate ranges (0.0000 to 1.0000) in entity type columns."""
-        issues = []
-
-        # Get entity type columns for this sheet
-        entity_columns = self.get_entity_type_columns(sheet_name, df)
-
-        # Validate rates in each entity type column
-        for col_name, entity_coding in entity_columns.items():
-            for idx, rate in df[col_name].items():
-                if pd.isna(rate):
-                    continue
-
-                try:
-                    rate_decimal = Decimal(str(rate))
-                    if rate_decimal < Decimal('0.0000') or rate_decimal > Decimal('1.0000'):
-                        issues.append(ValidationIssue(
-                            rule_set_id=self.rule_set_id,
-                            sheet_name=sheet_name,
-                            row_number=idx + 2,
-                            column_name=col_name,
-                            error_code="INVALID_RATE_RANGE",
-                            severity=IssueSeverity.ERROR,
-                            message=f"Tax rate {rate_decimal} is outside valid range (0.0000 to 1.0000) for entity type '{entity_coding}'",
-                            field_value=str(rate_decimal)
-                        ))
-                except (ValueError, InvalidOperation):
-                    issues.append(ValidationIssue(
-                        rule_set_id=self.rule_set_id,
-                        sheet_name=sheet_name,
-                        row_number=idx + 2,
-                        column_name=col_name,
-                        error_code="INVALID_RATE_FORMAT",
-                        severity=IssueSeverity.ERROR,
-                        message=f"Invalid rate format '{rate}' for entity type '{entity_coding}'. Must be a number.",
-                        field_value=str(rate)
-                    ))
-
-        return issues
 
     def validate_duplicate_rules(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
         """Validate for duplicate state/entity combinations."""
@@ -519,7 +471,10 @@ class ExcelProcessor:
         return rules
 
     def validate_file(self, file_path: Union[str, Path]) -> ExcelValidationResult:
-        """Validate Excel file structure and basic content without processing rules."""
+        """Validate Excel file structure and basic content without processing rules.
+
+        Fails fast - returns immediately upon first validation error.
+        """
         self.validation_issues = []
         self.rule_set_id = "validation"  # Temporary ID for validation
 
@@ -530,47 +485,58 @@ class ExcelProcessor:
             # Check for missing required sheets first - fail immediately if any are missing
             missing_sheets = set(self.REQUIRED_SHEETS) - set(dataframes.keys())
             if missing_sheets:
-                errors = []
-                for sheet_name in missing_sheets:
-                    errors.append({
-                        "sheet": "FILE",
-                        "row": 1,
-                        "column": None,
-                        "error_code": "MISSING_REQUIRED_SHEET",
-                        "message": f"Required sheet '{sheet_name}' is missing from the workbook",
-                        "field_value": sheet_name
-                    })
+                # Return immediately on missing sheets
+                sheet_name = list(missing_sheets)[0]  # Get first missing sheet
+                error = {
+                    "sheet": "FILE",
+                    "row": 1,
+                    "column": None,
+                    "error_code": "MISSING_REQUIRED_SHEET",
+                    "message": f"Required sheet '{sheet_name}' is missing from the workbook",
+                    "field_value": sheet_name
+                }
+                logger.error(f"File validation failed: Missing required sheet: {sheet_name}")
+                return ExcelValidationResult(is_valid=False, errors=[error])
 
-                logger.error(f"File validation failed: Missing required sheets: {missing_sheets}")
-                return ExcelValidationResult(is_valid=False, errors=errors)
-
-            # Validate each required sheet
+            # Validate each required sheet - fail fast on first error
             for sheet_name in self.REQUIRED_SHEETS:
                 df = dataframes[sheet_name]
 
-                # Run all validation checks
-                self.validation_issues.extend(self.validate_sheet_structure(sheet_name, df))
-                self.validation_issues.extend(self.validate_state_codes(sheet_name, df))
-                self.validation_issues.extend(self.validate_rate_ranges(sheet_name, df))
-
-            # Convert validation issues to error format
-            errors = []
-            for issue in self.validation_issues:
-                if issue.severity == IssueSeverity.ERROR:
-                    errors.append({
+                # Check sheet structure first
+                structure_issues = self.validate_sheet_structure(sheet_name, df)
+                if structure_issues:
+                    # Return immediately on first structure error
+                    issue = structure_issues[0]
+                    error = {
                         "sheet": issue.sheet_name,
                         "row": issue.row_number,
                         "column": issue.column_name,
                         "error_code": issue.error_code,
                         "message": issue.message,
                         "field_value": issue.field_value
-                    })
+                    }
+                    logger.error(f"File validation failed: {issue.message}")
+                    return ExcelValidationResult(is_valid=False, errors=[error])
 
-            is_valid = len(errors) == 0
+                # Check state codes
+                state_issues = self.validate_state_codes(sheet_name, df)
+                if state_issues:
+                    # Return immediately on first state code error
+                    issue = state_issues[0]
+                    error = {
+                        "sheet": issue.sheet_name,
+                        "row": issue.row_number,
+                        "column": issue.column_name,
+                        "error_code": issue.error_code,
+                        "message": issue.message,
+                        "field_value": issue.field_value
+                    }
+                    logger.error(f"File validation failed: {issue.message}")
+                    return ExcelValidationResult(is_valid=False, errors=[error])
 
-            logger.info(f"File validation completed. Valid: {is_valid}, Errors: {len(errors)}")
-
-            return ExcelValidationResult(is_valid=is_valid, errors=errors)
+            # If we get here, validation passed
+            logger.info("File validation completed successfully")
+            return ExcelValidationResult(is_valid=True, errors=[])
 
         except Exception as e:
             logger.error(f"File validation failed: {str(e)}")
@@ -606,7 +572,6 @@ class ExcelProcessor:
                 # Validate sheet structure and data
                 self.validation_issues.extend(self.validate_sheet_structure("Withholding", withholding_df))
                 self.validation_issues.extend(self.validate_state_codes("Withholding", withholding_df))
-                self.validation_issues.extend(self.validate_rate_ranges("Withholding", withholding_df))
 
                 # Convert to WithholdingRule objects if no critical errors
                 error_count = sum(1 for issue in self.validation_issues
@@ -637,7 +602,6 @@ class ExcelProcessor:
                 # Validate sheet structure and data
                 self.validation_issues.extend(self.validate_sheet_structure("Composite", composite_df))
                 self.validation_issues.extend(self.validate_state_codes("Composite", composite_df))
-                self.validation_issues.extend(self.validate_rate_ranges("Composite", composite_df))
 
                 # Convert to CompositeRule objects if no critical errors
                 error_count = sum(1 for issue in self.validation_issues
