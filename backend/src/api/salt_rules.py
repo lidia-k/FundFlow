@@ -232,6 +232,57 @@ async def upload_salt_rules(
         )
 
 
+@router.get("")
+async def list_rule_sets(
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """List SALT rule sets with pagination."""
+    try:
+        # Get total count
+        total_count = db.query(SaltRuleSet).count()
+
+        # Apply pagination and ordering
+        rule_sets = (
+            db.query(SaltRuleSet)
+            .order_by(SaltRuleSet.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        # Format response
+        items = []
+        for rule_set in rule_sets:
+            items.append({
+                "id": str(rule_set.id),
+                "year": rule_set.year,
+                "quarter": rule_set.quarter.value,
+                "version": rule_set.version,
+                "status": rule_set.status.value,
+                "effectiveDate": rule_set.effective_date.isoformat(),
+                "ruleCountWithholding": rule_set.rule_count_withholding,
+                "ruleCountComposite": rule_set.rule_count_composite,
+                "createdAt": rule_set.created_at.isoformat() + "Z",
+                "publishedAt": rule_set.published_at.isoformat() + "Z" if rule_set.published_at else None,
+                "description": rule_set.description
+            })
+
+        return {
+            "items": items,
+            "totalCount": total_count,
+            "limit": limit,
+            "offset": offset,
+            "hasMore": offset + limit < total_count
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing rule sets: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
 

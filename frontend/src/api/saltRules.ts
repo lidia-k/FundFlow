@@ -2,7 +2,6 @@ import axios from 'axios';
 import type {
   RuleSet,
   ValidationResponse,
-  PublishRequest,
   UploadResponse,
   SaltRulesListResponse
 } from '../types/saltRules';
@@ -41,12 +40,6 @@ export const saltRulesApi = {
       },
     });
 
-    return response.data;
-  },
-
-  // Publish rule set
-  publish: async (ruleSetId: string, data: PublishRequest): Promise<{ message: string; publishedAt: string }> => {
-    const response = await saltRulesClient.post(`/${ruleSetId}/publish`, data);
     return response.data;
   },
 

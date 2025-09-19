@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, DocumentTextIcon, ChartBarIcon, TrashIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import { saltRulesApi } from '../api/saltRules';
 import type { RuleSet } from '../types/saltRules';
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -196,11 +196,11 @@ export default function SaltRulesDashboard() {
 
         <div className="card p-6">
           <div className="flex items-center">
-            <CloudArrowUpIcon className="h-8 w-8 text-primary-600" />
+            <ArchiveBoxIcon className="h-8 w-8 text-gray-600" />
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Pending</h3>
+              <h3 className="text-lg font-medium text-gray-900">Archived</h3>
               <p className="text-sm text-gray-500">
-                {ruleSets.filter(rs => rs.status !== 'active').length} waiting
+                {ruleSets.filter(rs => rs.status === 'archived').length} archived
               </p>
             </div>
           </div>

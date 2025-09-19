@@ -90,11 +90,6 @@ export interface ValidationResponse {
 }
 
 
-export interface PublishRequest {
-  effectiveDate?: string;
-  confirmArchive: boolean;
-}
-
 export interface ValidationError {
   sheet: string;
   row: number;
