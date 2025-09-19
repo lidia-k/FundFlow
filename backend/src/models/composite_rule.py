@@ -51,7 +51,7 @@ class CompositeRule(Base):
         ),
         # Unique constraint: one rule per rule_set/state/entity combination
         UniqueConstraint(
-            "rule_set_id", "state_code", "entity_type",
+            "rule_set_id", "state", "entity_type",
             name="uq_composite_rule_set_state_entity"
         ),
     )

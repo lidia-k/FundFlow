@@ -82,14 +82,12 @@ class FileService:
                     error_message=f"Content type '{content_type}' not allowed"
                 )
 
-            # Generate storage path
+            # Generate storage path and copy file
             secure_path = self._generate_storage_path(year, quarter, original_filename)
-
-            # Copy file to secure storage
             secure_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(file_path, secure_path)
 
-            # Create SourceFile record
+            # Create SourceFile record (simple - any duplicates handled at rule set level)
             source_file = SourceFile(
                 id=str(uuid4()),
                 filename=original_filename,
@@ -191,7 +189,7 @@ class FileService:
         return (
             self.storage_root
             / str(year)
-            / quarter.value.lower()
+            / quarter.lower()
             / original_filename
         )
 

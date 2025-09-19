@@ -120,14 +120,11 @@ async def upload_salt_rules(
             temp_file_path = Path(temp_file.name)
 
         try:
-            # STEP 1: Validate file first (before saving anything to DB)
+            # STEP 1: Validate file first (before saving anything)
             excel_processor = ExcelProcessor()
-            validation_service = ValidationService(db)
-
-            # Validate file structure and content
             validation_result = excel_processor.validate_file(temp_file_path)
 
-            # If validation fails, return errors immediately without saving to DB
+            # If validation fails, return errors immediately without saving anything
             if not validation_result.is_valid:
                 return UploadResponse(
                     rule_set_id="",
@@ -142,24 +139,31 @@ async def upload_salt_rules(
                     validation_errors=validation_result.errors
                 )
 
-            # STEP 2: File is valid, now save to database
-            file_service = FileService(db)
+            # STEP 2: File is valid - delete any existing draft and create new one
+            # Delete existing DRAFT rule set for this year/quarter (simple override)
+            existing_rule_set = db.query(SaltRuleSet).filter(
+                SaltRuleSet.year == year,
+                SaltRuleSet.quarter == quarter_enum,
+                SaltRuleSet.status == RuleSetStatus.DRAFT
+            ).first()
 
-            # Store file and check for duplicates
+            if existing_rule_set:
+                db.delete(existing_rule_set)  # Cascade will delete related records
+                db.commit()
+
+            # Store file (simple override if exists)
+            file_service = FileService(db)
             storage_result = file_service.store_uploaded_file(
                 temp_file_path, file.filename, file.content_type or
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "admin@fundflow.com",  # TODO: Get from auth
-                year, quarter_enum
+                year, quarter_enum.value
             )
 
             if storage_result.error_message:
-                raise HTTPException(
-                    status_code=400,
-                    detail=storage_result.error_message
-                )
+                raise HTTPException(status_code=400, detail=storage_result.error_message)
 
-            # Create rule set
+            # Create new rule set
             rule_set_id = str(uuid4())
             rule_set = SaltRuleSet(
                 id=rule_set_id,
@@ -167,7 +171,7 @@ async def upload_salt_rules(
                 quarter=quarter_enum,
                 version="1.0.0",
                 status=RuleSetStatus.DRAFT,
-                effective_date=date.today(),  # Default, can be changed on publish
+                effective_date=date.today(),
                 created_at=datetime.now(),
                 created_by="admin@fundflow.com",  # TODO: Get from auth
                 description=description,
