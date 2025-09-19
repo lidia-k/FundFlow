@@ -85,6 +85,17 @@ class FileService:
             # Generate storage path and copy file
             secure_path = self._generate_storage_path(year, quarter, original_filename)
             secure_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Check for existing SourceFile with same filepath and delete it
+            existing_source_file = self.db.query(SourceFile).filter(
+                SourceFile.filepath == str(secure_path)
+            ).first()
+
+            if existing_source_file:
+                logger.info(f"Found existing source file with same path, deleting: {existing_source_file.filepath}")
+                self.db.delete(existing_source_file)
+                self.db.commit()
+
             shutil.copy2(file_path, secure_path)
 
             # Create SourceFile record (simple - any duplicates handled at rule set level)

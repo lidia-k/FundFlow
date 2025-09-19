@@ -8,7 +8,7 @@ from uuid import uuid4
 from datetime import datetime, date
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field, validator
 
 from ..database.connection import get_db
 from ..services.excel_processor import ExcelProcessor
@@ -33,13 +33,16 @@ class PublishRequest(BaseModel):
 
 class UploadResponse(BaseModel):
     """Response model for upload endpoint."""
-    rule_set_id: str
+    rule_set_id: str = Field(alias="ruleSetId")
     status: str  # "valid", "validation_failed"
-    uploaded_file: Dict[str, Any]
-    validation_started: bool
+    uploaded_file: Dict[str, Any] = Field(alias="uploadedFile")
+    validation_started: bool = Field(alias="validationStarted")
     message: str
-    validation_errors: Optional[List[Dict[str, Any]]] = None
-    rule_counts: Optional[Dict[str, int]] = None
+    validation_errors: Optional[List[Dict[str, Any]]] = Field(None, alias="validationErrors")
+    rule_counts: Optional[Dict[str, int]] = Field(None, alias="ruleCounts")
+
+    class Config:
+        populate_by_name = True
 
 
 class ValidationResponse(BaseModel):
@@ -59,7 +62,7 @@ class ErrorResponse(BaseModel):
 
 
 
-@router.post("/upload", response_model=UploadResponse, status_code=201)
+@router.post("/upload", response_model=UploadResponse, response_model_by_alias=True, status_code=201)
 async def upload_salt_rules(
     file: UploadFile = File(...),
     description: Optional[str] = Form(None),
@@ -148,8 +151,17 @@ async def upload_salt_rules(
             ).first()
 
             if existing_rule_set:
+                logger.info(f"Found existing draft rule set: {existing_rule_set.id}")
+                # Also delete the associated source file to avoid unique constraint violation
+                if existing_rule_set.source_file:
+                    logger.info(f"Deleting existing source file: {existing_rule_set.source_file.filepath}")
+                    db.delete(existing_rule_set.source_file)
+                else:
+                    logger.warning("Existing rule set has no associated source file")
+                logger.info(f"Deleting existing rule set: {existing_rule_set.id}")
                 db.delete(existing_rule_set)  # Cascade will delete related records
                 db.commit()
+                logger.info("Successfully deleted existing draft rule set and source file")
 
             # Store file (simple override if exists)
             file_service = FileService(db)
@@ -201,7 +213,7 @@ async def upload_salt_rules(
 
             db.commit()
 
-            return UploadResponse(
+            response = UploadResponse(
                 rule_set_id=rule_set_id,
                 status="valid",
                 uploaded_file={
@@ -216,6 +228,7 @@ async def upload_salt_rules(
                     "composite": len(processing_result.composite_rules)
                 }
             )
+            return response
 
         finally:
             # Clean up temp file
@@ -421,6 +434,47 @@ async def get_rule_set_detail(
         )
     except Exception as e:
         logger.error(f"Error getting rule set detail: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.delete("/{rule_set_id}")
+async def delete_rule_set(
+    rule_set_id: str,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Delete a rule set and all associated data."""
+    try:
+        # Validate rule set exists
+        rule_set = db.get(SaltRuleSet, rule_set_id)
+        if not rule_set:
+            raise HTTPException(
+                status_code=404,
+                detail="Rule set not found"
+            )
+
+        # Check if rule set can be deleted (only draft and archived rule sets)
+        if rule_set.status == RuleSetStatus.ACTIVE:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot delete active rule set. Archive it first."
+            )
+
+        # Use RuleSetService to handle deletion
+        rule_set_service = RuleSetService(db)
+        rule_set_service.delete_rule_set(rule_set_id)
+
+        return {
+            "message": "Rule set deleted successfully",
+            "deletedAt": datetime.now().isoformat() + "Z"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting rule set: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error: {str(e)}"

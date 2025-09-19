@@ -79,6 +79,12 @@ export const saltRulesApi = {
     });
     return response.data;
   },
+
+  // Delete rule set
+  delete: async (ruleSetId: string): Promise<{ message: string; deletedAt: string }> => {
+    const response = await saltRulesClient.delete(`/${ruleSetId}`);
+    return response.data;
+  },
 };
 
 export default saltRulesApi;
