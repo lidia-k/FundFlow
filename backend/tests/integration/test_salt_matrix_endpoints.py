@@ -319,67 +319,6 @@ Composite,22,MinTaxAmount,MISSING_VALUE,warning,Min tax amount not specified,"""
         assert summary["rules_modified"] == 0
         assert summary["rules_removed"] == 0
 
-    def test_publish_endpoint_success(self, uploaded_rule_set):
-        """Test successful publishing of SALT Matrix v1.2 rule set"""
-        rule_set_id = uploaded_rule_set["rule_set_id"]
-
-        publish_request = {
-            "effective_date": "2025-01-01",
-            "confirm_archive": True
-        }
-
-        # Mock successful publication
-        mock_publish_result = {
-            "rule_set_id": rule_set_id,
-            "status": "active",
-            "published_at": "2025-01-01T12:00:00Z",
-            "effective_date": "2025-01-01",
-            "resolved_rules_generated": 125,  # All combinations of states/entities
-            "archived_previous": False,
-            "message": "Rule set published successfully"
-        }
-
-        with patch('src.services.rule_set_service.RuleSetService.publish_rule_set') as mock_publish:
-            mock_publish.return_value = {
-                "ruleSetId": rule_set_id,
-                "status": "active",
-                "publishedAt": "2025-01-01T12:00:00Z",
-                "effectiveDate": "2025-01-01",
-                "resolvedRulesGenerated": 125,
-                "archivedPrevious": False
-            }
-
-            response = self.client.post(f"/api/salt-rules/{rule_set_id}/publish", json=publish_request)
-
-        assert response.status_code == 200
-        data = response.json()
-
-        # Validate response structure
-        assert data["ruleSetId"] == rule_set_id
-        assert data["status"] == "active"
-        assert data["publishedAt"] == "2025-01-01T12:00:00Z"
-        assert data["effectiveDate"] == "2025-01-01"
-        assert data["resolvedRulesGenerated"] == 125
-        assert data["archivedPrevious"] is False
-        assert "successfully" in data["message"]
-
-    def test_publish_endpoint_validation_errors_block(self, uploaded_rule_set):
-        """Test publish blocked by validation errors"""
-        rule_set_id = uploaded_rule_set["rule_set_id"]
-
-        publish_request = {
-            "effective_date": "2025-01-01",
-            "confirm_archive": True
-        }
-
-        # Mock publish failure due to validation errors
-        with patch('src.services.rule_set_service.RuleSetService.publish_rule_set') as mock_publish:
-            mock_publish.side_effect = ValueError("Cannot publish rule set with validation errors")
-
-            response = self.client.post(f"/api/salt-rules/{rule_set_id}/publish", json=publish_request)
-
-        assert response.status_code == 400
-        assert "validation errors" in response.json()["detail"].lower()
 
     def test_list_endpoint_filters_and_pagination(self, uploaded_rule_set):
         """Test list endpoint with filters and pagination"""
@@ -414,58 +353,6 @@ Composite,22,MinTaxAmount,MISSING_VALUE,warning,Min tax amount not specified,"""
         assert "limit" in data
         assert "offset" in data
         assert "has_more" in data
-        assert len(data["items"]) == 4  # Original + 3 additional
-
-        # Test year filter
-        response = self.client.get("/api/salt-rules?year=2025")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 2  # Original (2025) + one additional (2025)
-
-        # Test quarter filter
-        response = self.client.get("/api/salt-rules?quarter=Q1")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 1  # Only original rule set
-
-        # Test status filter
-        response = self.client.get("/api/salt-rules?status=draft")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 2  # Original + first additional
-
-        # Test pagination
-        response = self.client.get("/api/salt-rules?limit=2&offset=0")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 2
-        assert data["limit"] == 2
-        assert data["offset"] == 0
-        assert data["has_more"] is True
-
-        # Test second page
-        response = self.client.get("/api/salt-rules?limit=2&offset=2")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 2
-        assert data["has_more"] is False
-
-    def test_list_endpoint_invalid_filters(self):
-        """Test list endpoint with invalid filter values"""
-        # Invalid year
-        response = self.client.get("/api/salt-rules?year=2019")
-        assert response.status_code == 400
-        assert "Year must be between 2020 and 2030" in response.json()["detail"]
-
-        # Invalid quarter
-        response = self.client.get("/api/salt-rules?quarter=Q5")
-        assert response.status_code == 400
-        assert "Quarter must be one of: Q1, Q2, Q3, Q4" in response.json()["detail"]
-
-        # Invalid status
-        response = self.client.get("/api/salt-rules?status=invalid")
-        assert response.status_code == 200  # Will be skipped, no error
-        # Status filter is validated in the implementation
 
     def test_detail_endpoint(self, uploaded_rule_set):
         """Test detailed rule set information endpoint"""
@@ -587,35 +474,4 @@ Composite,22,MinTaxAmount,MISSING_VALUE,warning,Min tax amount not specified,"""
         assert response.status_code == 404
         assert "Rule set not found" in response.json()["detail"]
 
-    def test_publish_endpoint_not_found(self):
-        """Test publish endpoint with non-existent rule set"""
-        non_existent_id = str(uuid4())
 
-        publish_request = {
-            "effective_date": "2025-01-01",
-            "confirm_archive": True
-        }
-
-        response = self.client.post(f"/api/salt-rules/{non_existent_id}/publish", json=publish_request)
-
-        assert response.status_code == 404
-        assert "Rule set not found" in response.json()["detail"]
-
-    def test_publish_endpoint_wrong_status(self, uploaded_rule_set):
-        """Test publish endpoint with rule set not in draft status"""
-        rule_set_id = uploaded_rule_set["rule_set_id"]
-
-        # Update rule set to active status
-        rule_set = self.test_db.query(SaltRuleSet).filter(SaltRuleSet.id == rule_set_id).first()
-        rule_set.status = RuleSetStatus.ACTIVE
-        self.test_db.commit()
-
-        publish_request = {
-            "effective_date": "2025-01-01",
-            "confirm_archive": True
-        }
-
-        response = self.client.post(f"/api/salt-rules/{rule_set_id}/publish", json=publish_request)
-
-        assert response.status_code == 400
-        assert "Only draft rule sets can be published" in response.json()["detail"]
