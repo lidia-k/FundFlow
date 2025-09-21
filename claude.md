@@ -292,7 +292,40 @@ Always use context7 when I need code generation, setup or configuration steps, o
 - Keep .venv in the project root directory
 - Ensure virtual environment is activated before running Python code
 
+## Epic 2B: Withholding and Composite Tax Calculation (Current)
+**Branch**: `003-epic-2b-withholding` | **Status**: Implementation Planning Complete
+
+### Overview
+Epic 2B extends the existing SALT rule system (Epic 2A) to implement automatic tax calculations for investor distributions. When users upload distribution data and an active SALT rule set exists, the system applies a 3-step calculation process:
+
+1. **Handle Exemptions**: Skip calculations for exempt distributions and same-state jurisdictions
+2. **Calculate Composite Tax**: Apply rates for mandatory filing states with thresholds
+3. **Calculate Withholding Tax**: Apply withholding rates with per-partner thresholds
+4. **Present Results**: Show calculated taxes in modal instead of exemption flags
+
+### Key Implementation Details
+- **Data Model**: Extends Distribution model with tax calculation fields (withholding_tax_*, composite_tax_*)
+- **Service Layer**: New TaxCalculationService following existing Epic 2A patterns
+- **API Changes**: Extends existing /api/sessions endpoints, adds /audit-report endpoint
+- **Frontend**: Enhances ResultsModal to show tax amounts instead of exemption flags
+- **Audit Trail**: Comprehensive step-by-step calculation logging for compliance
+
+### Files to Modify
+- `backend/src/models/distribution.py` - Add tax calculation fields
+- `backend/src/services/tax_calculation_service.py` - Core calculation logic
+- `backend/src/services/excel_service.py` - Integration with upload pipeline
+- `backend/src/api/sessions.py` - Extended endpoints
+- `frontend/src/components/ResultsModal.tsx` - Enhanced tax display
+- Database migration for new fields and audit table
+
+### Integration Strategy
+Epic 2B leverages existing Epic 2A infrastructure:
+- Uses existing SALT rule tables (salt_rule_set, withholding_rule, composite_rule)
+- Integrates with current Excel upload pipeline
+- Maintains backward compatibility for sessions without SALT rules
+- Follows established service patterns and error handling
+
 ## Test-First (Non-Negotiable)
-- **Order:** Unit → Contract → Integration → E2E → Implementation.  
-- Write tests first (Red-Green-Refactor).  
+- **Order:** Unit → Contract → Integration → E2E → Implementation.
+- Write tests first (Red-Green-Refactor).
 - All merges require passing tests and proof of the TDD cycle.  

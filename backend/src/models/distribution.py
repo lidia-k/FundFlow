@@ -2,7 +2,17 @@
 
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Numeric, Enum as SQLEnum, Index
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Boolean,
+    Numeric,
+    Enum as SQLEnum,
+    Index,
+)
 from sqlalchemy.orm import relationship
 from ..database.connection import Base
 from .enums import USJurisdiction
@@ -23,6 +33,8 @@ class Distribution(Base):
     amount = Column(Numeric(precision=12, scale=2), nullable=False, default=Decimal('0.00'))
     composite_exemption = Column(Boolean, nullable=False, default=False)
     withholding_exemption = Column(Boolean, nullable=False, default=False)
+    composite_tax_amount = Column(Numeric(precision=12, scale=2), nullable=True)
+    withholding_tax_amount = Column(Numeric(precision=12, scale=2), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships

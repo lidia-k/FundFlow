@@ -205,12 +205,12 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                         {/* Dynamic exemption columns */}
                         {jurisdictions.map(jurisdiction => (
                           <th key={`comp-${jurisdiction}`} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Composite {jurisdiction}
+                            Composite Exemption {jurisdiction}
                           </th>
                         ))}
                         {jurisdictions.map(jurisdiction => (
                           <th key={`with-${jurisdiction}`} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Withholding {jurisdiction}
+                            Withholding Exemption {jurisdiction}
                           </th>
                         ))}
 

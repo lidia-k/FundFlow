@@ -59,6 +59,12 @@ async def get_results(
             "amount": float(dist.amount),
             "composite_exemption": dist.composite_exemption,
             "withholding_exemption": dist.withholding_exemption,
+            "composite_tax_amount": float(dist.composite_tax_amount)
+            if dist.composite_tax_amount is not None
+            else None,
+            "withholding_tax_amount": float(dist.withholding_tax_amount)
+            if dist.withholding_tax_amount is not None
+            else None,
             "created_at": dist.created_at.isoformat()
         })
 
@@ -164,6 +170,5 @@ async def get_results_preview(
         "preview_limit": limit,
         "showing_count": len(preview_data)
     }
-
 
 

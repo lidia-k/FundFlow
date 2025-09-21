@@ -12,6 +12,7 @@ from ..services.session_service import SessionService
 from ..services.excel_service import ExcelService
 from ..services.investor_service import InvestorService
 from ..services.distribution_service import DistributionService
+from ..services.tax_calculation_service import TaxCalculationService
 from ..models.user_session import UploadStatus
 
 router = APIRouter()
@@ -48,6 +49,7 @@ async def upload_file(
         excel_service = ExcelService()
         investor_service = InvestorService(db)
         distribution_service = DistributionService(db)
+        tax_calculation_service = TaxCalculationService(db)
 
         # Save uploaded file temporarily for validation
         file_extension = Path(file.filename).suffix
@@ -130,6 +132,10 @@ async def upload_file(
                     parsed_row=row_data
                 )
                 distributions_created += len(distributions)
+
+            # Apply SALT tax calculations before finalizing
+            db.flush()
+            tax_calculation_service.apply_for_session(session.session_id)
 
             # Commit all changes
             db.commit()
