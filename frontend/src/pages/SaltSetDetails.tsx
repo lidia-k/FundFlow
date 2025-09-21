@@ -40,8 +40,8 @@ export default function SaltSetDetails({ isOpen, onClose, ruleSetId }: SaltSetDe
   // Data transformation functions
   const transformWithholdingRules = (rules: WithholdingRule[]): StateWithholdingData[] => {
     const stateGroups = rules.reduce((acc, rule) => {
-      if (!acc[rule.stateCode]) {
-        acc[rule.stateCode] = {
+      if (!acc[rule.state]) {
+        acc[rule.state] = {
           state: rule.state,
           stateCode: rule.stateCode,
           individual: 0,
@@ -70,8 +70,8 @@ export default function SaltSetDetails({ isOpen, onClose, ruleSetId }: SaltSetDe
       };
 
       const entityKey = entityTypeMap[rule.entityType];
-      if (entityKey && typeof acc[rule.stateCode][entityKey] === 'number') {
-        (acc[rule.stateCode] as any)[entityKey] = rule.taxRate;
+      if (entityKey && typeof acc[rule.state][entityKey] === 'number') {
+        (acc[rule.state] as any)[entityKey] = rule.taxRate;
       }
 
       return acc;
@@ -82,8 +82,8 @@ export default function SaltSetDetails({ isOpen, onClose, ruleSetId }: SaltSetDe
 
   const transformCompositeRules = (rules: CompositeRule[]): StateCompositeData[] => {
     const stateGroups = rules.reduce((acc, rule) => {
-      if (!acc[rule.stateCode]) {
-        acc[rule.stateCode] = {
+      if (!acc[rule.state]) {
+        acc[rule.state] = {
           state: rule.state,
           stateCode: rule.stateCode,
           individual: 0,
@@ -112,8 +112,8 @@ export default function SaltSetDetails({ isOpen, onClose, ruleSetId }: SaltSetDe
       };
 
       const entityKey = entityTypeMap[rule.entityType];
-      if (entityKey && typeof acc[rule.stateCode][entityKey] === 'number') {
-        (acc[rule.stateCode] as any)[entityKey] = rule.taxRate;
+      if (entityKey && typeof acc[rule.state][entityKey] === 'number') {
+        (acc[rule.state] as any)[entityKey] = rule.taxRate;
       }
 
       return acc;
