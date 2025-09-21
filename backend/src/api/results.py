@@ -3,13 +3,16 @@
 import os
 from pathlib import Path
 from typing import Any, Dict, List
-from fastapi import APIRouter, Depends, HTTPException
+import io
+import csv
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from ..database.connection import get_db
 from ..services.session_service import SessionService
 from ..services.distribution_service import DistributionService
 from ..services.validation_service import ValidationService
-from ..services.excel_service import ExcelService
+from ..services.tax_calculation_service import TaxCalculationService
 
 router = APIRouter()
 
@@ -124,6 +127,7 @@ async def get_results(
 async def get_results_preview(
     session_id: str,
     limit: int = 100,
+    mode: str = Query("upload", pattern="^(upload|results)$"),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -149,18 +153,38 @@ async def get_results_preview(
 
     # Format for display
     preview_data = []
+    results_mode = mode == "results"
     for dist in limited_distributions:
-        preview_data.append({
+        preview_entry = {
             "investor_name": dist.investor.investor_name,
             "entity_type": dist.investor.investor_entity_type.value,
             "tax_state": dist.investor.investor_tax_state,
             "jurisdiction": dist.jurisdiction.value,
             "amount": float(dist.amount),
-            "composite_exemption": "Yes" if dist.composite_exemption else "No",
-            "withholding_exemption": "Yes" if dist.withholding_exemption else "No",
             "fund_code": dist.fund_code,
             "period": f"{dist.period_quarter} {dist.period_year}"
-        })
+        }
+
+        if results_mode:
+            preview_entry["composite_tax_amount"] = (
+                float(dist.composite_tax_amount)
+                if dist.composite_tax_amount is not None
+                else None
+            )
+            preview_entry["withholding_tax_amount"] = (
+                float(dist.withholding_tax_amount)
+                if dist.withholding_tax_amount is not None
+                else None
+            )
+        else:
+            preview_entry["composite_exemption"] = (
+                "Yes" if dist.composite_exemption else "No"
+            )
+            preview_entry["withholding_exemption"] = (
+                "Yes" if dist.withholding_exemption else "No"
+            )
+
+        preview_data.append(preview_entry)
 
     return {
         "session_id": session_id,
@@ -172,3 +196,107 @@ async def get_results_preview(
     }
 
 
+@router.get("/results/{session_id}/report")
+async def download_results_report(
+    session_id: str,
+    db: Session = Depends(get_db)
+):
+    """Download detailed tax calculation report for auditing."""
+    session_service = SessionService(db)
+    distribution_service = DistributionService(db)
+    tax_service = TaxCalculationService(db)
+
+    session = session_service.get_session_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    distributions = distribution_service.get_distributions_by_session(session_id)
+    if not distributions:
+        raise HTTPException(status_code=404, detail="No distributions found for session")
+
+    rule_context = tax_service.get_rule_context()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Investor Name",
+        "Entity Type",
+        "Investor Tax State",
+        "Jurisdiction",
+        "Distribution Amount",
+        "Composite Exemption",
+        "Withholding Exemption",
+        "Composite Tax Amount",
+        "Withholding Tax Amount",
+        "Applied Tax",
+        "Composite Rule ID",
+        "Composite Rate",
+        "Composite Income Threshold",
+        "Composite Mandatory Filing",
+        "Withholding Rule ID",
+        "Withholding Rate",
+        "Withholding Income Threshold",
+        "Withholding Tax Threshold",
+    ])
+
+    for dist in distributions:
+        investor = dist.investor
+        if investor is None:
+            continue
+
+        entity_type = investor.investor_entity_type
+        entity_code = (
+            entity_type.coding
+            if hasattr(entity_type, "coding")
+            else str(entity_type)
+        )
+        rule_key = (dist.jurisdiction.value, entity_code)
+
+        composite_rule = None
+        withholding_rule = None
+        if rule_context:
+            composite_rule = rule_context.composite_rules.get(rule_key)
+            withholding_rule = rule_context.withholding_rules.get(rule_key)
+
+        applied_tax = "None"
+        if dist.composite_tax_amount:
+            applied_tax = "Composite"
+        elif dist.withholding_tax_amount:
+            applied_tax = "Withholding"
+
+        investor_state = (
+            investor.investor_tax_state.value
+            if hasattr(investor.investor_tax_state, "value")
+            else str(investor.investor_tax_state)
+        )
+
+        writer.writerow([
+            investor.investor_name,
+            investor.investor_entity_type.value,
+            investor_state,
+            dist.jurisdiction.value,
+            f"{dist.amount:.2f}",
+            "Yes" if dist.composite_exemption else "No",
+            "Yes" if dist.withholding_exemption else "No",
+            f"{dist.composite_tax_amount:.2f}" if dist.composite_tax_amount is not None else "",
+            f"{dist.withholding_tax_amount:.2f}" if dist.withholding_tax_amount is not None else "",
+            applied_tax,
+            getattr(composite_rule, "id", ""),
+            f"{composite_rule.tax_rate:.4f}" if composite_rule else "",
+            f"{composite_rule.income_threshold:.2f}" if composite_rule else "",
+            getattr(composite_rule, "mandatory_filing", ""),
+            getattr(withholding_rule, "id", ""),
+            f"{withholding_rule.tax_rate:.4f}" if withholding_rule else "",
+            f"{withholding_rule.income_threshold:.2f}" if withholding_rule else "",
+            f"{withholding_rule.tax_threshold:.2f}" if withholding_rule else "",
+        ])
+
+    output.seek(0)
+    filename = f"tax_calculation_report_{session_id}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        },
+    )

@@ -58,6 +58,22 @@ class TestTaxCalculationServiceLogic:
     def setup_method(self) -> None:
         self.service = TaxCalculationService(db=None)
 
+    def test_get_rule_context_returns_none_without_active_rule_set(self):
+        service = TaxCalculationService(db=MagicMock())
+        service._get_active_rule_set = MagicMock(return_value=None)
+
+        assert service.get_rule_context() is None
+
+    def test_get_rule_context_returns_none_when_rules_missing(self):
+        service = TaxCalculationService(db=MagicMock())
+        fake_rule_set = MagicMock()
+        service._get_active_rule_set = MagicMock(return_value=fake_rule_set)
+        service._build_rule_context = MagicMock(
+            return_value=RuleContext(fake_rule_set, {}, {})
+        )
+
+        assert service.get_rule_context() is None
+
     def test_exemption_skips_calculation(self):
         investor = make_investor(InvestorEntityType.PARTNERSHIP, USJurisdiction.CA)
         distribution = make_distribution(

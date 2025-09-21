@@ -1,14 +1,22 @@
 import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'react-hot-toast';
 import { CloudArrowUpIcon, DocumentIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { api } from '../api/client';
+import ResultsModal from '../components/ResultsModal';
 
 export default function Upload() {
-  const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [resultsModal, setResultsModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    filename: string;
+  }>({
+    isOpen: false,
+    sessionId: '',
+    filename: '',
+  });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -51,7 +59,11 @@ export default function Upload() {
 
       if (result.status === 'completed') {
         toast.success('File uploaded and processed successfully!');
-        navigate(`/results/${result.session_id}`);
+        setResultsModal({
+          isOpen: true,
+          sessionId: result.session_id,
+          filename: result.filename,
+        });
       } else if (result.status === 'validation_failed') {
         // Handle detailed validation errors
         let errorMessage = result.message + '\n\n' + result.errors.slice(0, 5).join('\n');
@@ -80,6 +92,10 @@ export default function Upload() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const closeResultsModal = () => {
+    setResultsModal({ isOpen: false, sessionId: '', filename: '' });
   };
 
   return (
@@ -193,6 +209,13 @@ export default function Upload() {
           </div>
         </div>
       )}
+
+      <ResultsModal
+        isOpen={resultsModal.isOpen}
+        onClose={closeResultsModal}
+        sessionId={resultsModal.sessionId}
+        filename={resultsModal.filename}
+      />
     </div>
   );
 }

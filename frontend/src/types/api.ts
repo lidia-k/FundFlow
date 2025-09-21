@@ -46,3 +46,26 @@ export interface ErrorResponse {
   detail: string;
   error_code?: string;
 }
+
+export interface ResultsPreviewRow {
+  investor_name: string;
+  entity_type: string;
+  tax_state: string;
+  jurisdiction: string;
+  amount: number;
+  fund_code: string;
+  period: string;
+  composite_exemption?: string;
+  withholding_exemption?: string;
+  composite_tax_amount?: number | null;
+  withholding_tax_amount?: number | null;
+}
+
+export interface ResultsPreviewResponse {
+  session_id: string;
+  status: CalculationStatus;
+  preview_data: ResultsPreviewRow[];
+  total_records: number;
+  preview_limit: number;
+  showing_count: number;
+}
