@@ -96,7 +96,7 @@ export default function Upload() {
       <div className="card p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Before You Upload</h2>
         <div className="space-y-3 text-sm text-gray-600">
-          <p>• Make sure your Excel file contains the required columns: Company Name, State, Revenue, LP Name, Ownership Percentage</p>
+          <p>• Make sure your Excel file contains the required columns: Investor Name, Investor Entity Type, Investor Tax State, Commitment Percentage, Distribution TX, Distribution NM, Distribution CO, and optional exemption columns</p>
           <p>• File size must be less than 10MB</p>
           <p>• Supported formats: .xlsx, .xls</p>
           <p>• Need a template? 

@@ -122,7 +122,7 @@ export default function UploadShadcn() {
             <div className="space-y-2">
               <p className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                Required columns: Company Name, State, Revenue, LP Name, Ownership Percentage
+                Required columns: Investor Name, Investor Entity Type, Investor Tax State, Commitment Percentage, Distribution TX, Distribution NM, Distribution CO, and optional exemption columns
               </p>
               <p className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />

@@ -1,6 +1,5 @@
 """Template API endpoint for downloading Excel template."""
 
-import os
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -16,12 +15,11 @@ async def download_template() -> FileResponse:
     Returns Excel template with proper headers and formatting.
     """
     # Look for template file in data directory
-    template_path = Path("data/template/investor_data_template.xlsx")
+    template_path = Path("data/templates/investor_data_template.xlsx")
 
     # Check if template exists
     if not template_path.exists():
         # If template doesn't exist, create a basic one
-        import pandas as pd
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -33,18 +31,19 @@ async def download_template() -> FileResponse:
         ws = wb.active
         ws.title = "Investor Data"
 
-        # Define headers
+        # Define headers (v1.3 format)
         headers = [
             "Investor Name",
             "Investor Entity Type",
             "Investor Tax State",
-            "Fund Code",
-            "Period Quarter",
-            "Period Year",
-            "Jurisdiction",
-            "Amount",
-            "Composite Exemption",
-            "Withholding Exemption"
+            "Commitment Percentage",
+            "Distribution TX",
+            "Distribution NM",
+            "Distribution CO",
+            "NM Withholding Exemption",
+            "NM Composite Exemption",
+            "CO Composite Exemption",
+            "CO Withholding Exemption"
         ]
 
         # Style for headers
@@ -61,16 +60,17 @@ async def download_template() -> FileResponse:
 
         # Add example data row
         example_data = [
-            "ABC Investment LLC",
-            "LLC",
+            "Example LP 1",
+            "LLC_Taxed as Partnership",
             "NY",
-            "FUND001",
-            "Q4",
-            "2023",
-            "STATE",
-            "100000.00",
-            "No",
-            "Exemption"
+            "10%",
+            "100,000",
+            "5,000",
+            "50,000",
+            "",
+            "",
+            "X",
+            ""
         ]
 
         for col, value in enumerate(example_data, 1):
@@ -92,19 +92,20 @@ async def download_template() -> FileResponse:
         # Add instructions sheet
         instructions_ws = wb.create_sheet("Instructions")
         instructions = [
-            "FundFlow Investor Data Template Instructions",
+            "FundFlow Investor Data Template Instructions (v1.3 Format)",
             "",
             "Column Descriptions:",
             "• Investor Name: Full legal name of the investor entity",
-            "• Investor Entity Type: LLC, Corporation, Partnership, Individual, Trust",
+            "• Investor Entity Type: LLC_Taxed as Partnership, Corporation, Individual, Trust, etc.",
             "• Investor Tax State: Two-letter state code (e.g., NY, CA, TX)",
-            "• Fund Code: Internal fund identifier",
-            "• Period Quarter: Q1, Q2, Q3, or Q4",
-            "• Period Year: Four-digit year (e.g., 2023)",
-            "• Jurisdiction: STATE, FOREIGN, or MUNICIPAL",
-            "• Amount: Distribution amount in decimal format",
-            "• Composite Exemption: 'Exemption' for exempt, any other value for non-exempt",
-            "• Withholding Exemption: 'Exemption' for exempt, any other value for non-exempt",
+            "• Commitment Percentage: Percentage with % symbol (e.g., 10%, 15%)",
+            "• Distribution TX: Distribution amount for Texas",
+            "• Distribution NM: Distribution amount for New Mexico",
+            "• Distribution CO: Distribution amount for Colorado",
+            "• NM Withholding Exemption: Enter 'X' if exempt, leave blank if not",
+            "• NM Composite Exemption: Enter 'X' if exempt, leave blank if not",
+            "• CO Composite Exemption: Enter 'X' if exempt, leave blank if not",
+            "• CO Withholding Exemption: Enter 'X' if exempt, leave blank if not",
             "",
             "File Requirements:",
             "• Maximum file size: 10MB",
@@ -112,11 +113,12 @@ async def download_template() -> FileResponse:
             "• Data should start from row 2 (headers in row 1)",
             "",
             "Validation Rules:",
-            "• All fields are required",
-            "• Amount must be a valid number",
+            "• All fields are required except exemption fields",
+            "• Distribution amounts should be in numeric format (can include commas)",
             "• State codes must be valid US states",
             "• Entity types must match allowed values",
-            "• Period format must be exact (Q1-Q4 for quarter, YYYY for year)",
+            "• Commitment percentage must include % symbol",
+            "• Exemption fields: use 'X' for exempt, leave blank for not exempt",
             "",
             "For support, contact: support@fundflow.com"
         ]
