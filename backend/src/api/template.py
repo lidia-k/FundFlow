@@ -7,6 +7,32 @@ from fastapi.responses import FileResponse
 router = APIRouter()
 
 
+@router.get("/template/salt-rules")
+async def download_salt_rules_template() -> FileResponse:
+    """
+    Download SALT rules matrix template file.
+
+    Returns Excel template with Withholding and Composite sheets for SALT tax rules.
+    """
+    # Look for SALT rules template file in data directory
+    salt_template_path = Path("data/templates/salt_matrix_template.xlsx")
+
+    # Check if template exists
+    if not salt_template_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="SALT rules template file not found"
+        )
+
+    # Return file
+    return FileResponse(
+        path=str(salt_template_path),
+        filename="salt_rules_matrix_template.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=salt_rules_matrix_template.xlsx"}
+    )
+
+
 @router.get("/template")
 async def download_template() -> FileResponse:
     """

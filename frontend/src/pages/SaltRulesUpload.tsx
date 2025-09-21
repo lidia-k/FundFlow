@@ -182,7 +182,7 @@ export default function SaltRulesUpload() {
               <div className="flex items-center gap-2 mt-4">
                 <Download className="h-4 w-4 text-primary" />
                 <Button variant="link" className="h-auto p-0 text-sm" asChild>
-                  <a href="/api/salt-rules/template" download>
+                  <a href="/api/template/salt-rules" download>
                     Download SALT rules template
                   </a>
                 </Button>
@@ -272,51 +272,6 @@ export default function SaltRulesUpload() {
         </Alert>
       )}
 
-      {/* Workflow Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>What Happens Next?</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center font-semibold text-sm">
-                1
-              </div>
-              <div>
-                <h4 className="font-medium">Validation</h4>
-                <p className="text-sm text-gray-600">
-                  File will be automatically validated for format, data integrity, and business rules
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center font-semibold text-sm">
-                2
-              </div>
-              <div>
-                <h4 className="font-medium">Preview Changes</h4>
-                <p className="text-sm text-gray-600">
-                  Review what rules will be added, modified, or removed before publishing
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center font-semibold text-sm">
-                3
-              </div>
-              <div>
-                <h4 className="font-medium">Publish Rules</h4>
-                <p className="text-sm text-gray-600">
-                  Once validated, publish the rules to make them active in the SALT calculation system
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
