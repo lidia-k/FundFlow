@@ -74,28 +74,6 @@ class DistributionService:
             Distribution.session_id == session_id
         ).all()
 
-    def get_distributions_by_investor(
-        self,
-        investor_id: int,
-        fund_code: Optional[str] = None,
-        period_quarter: Optional[str] = None,
-        period_year: Optional[int] = None
-    ) -> List[Distribution]:
-        """Get distributions for an investor with optional filters."""
-        query = self.db.query(Distribution).filter(
-            Distribution.investor_id == investor_id
-        )
-
-        if fund_code:
-            query = query.filter(Distribution.fund_code == fund_code)
-
-        if period_quarter:
-            query = query.filter(Distribution.period_quarter == period_quarter)
-
-        if period_year:
-            query = query.filter(Distribution.period_year == period_year)
-
-        return query.all()
 
     def get_distributions_by_fund_period(
         self,

@@ -148,35 +148,6 @@ class RuleSetService:
         return result
 
 
-    def archive_rule_set(self, rule_set_id: str) -> Dict[str, Any]:
-        """
-        Archive a rule set.
-
-        Args:
-            rule_set_id: UUID of the rule set to archive
-
-        Returns:
-            Dictionary with archive result information
-        """
-        rule_set = self.db.get(SaltRuleSet, rule_set_id)
-        if not rule_set:
-            raise ValueError(f"Rule set not found: {rule_set_id}")
-
-        if rule_set.status == RuleSetStatus.ARCHIVED:
-            raise ValueError("Rule set is already archived")
-
-        rule_set.status = RuleSetStatus.ARCHIVED
-        rule_set.expiration_date = date.today()
-
-        self.db.commit()
-
-        logger.info(f"Archived rule set: {rule_set_id}")
-
-        return {
-            "ruleSetId": rule_set_id,
-            "status": "archived",
-            "archivedAt": rule_set.expiration_date.isoformat()
-        }
 
     def delete_rule_set(self, rule_set_id: str, force: bool = False) -> Dict[str, Any]:
         """
@@ -237,38 +208,6 @@ class RuleSetService:
             "deletedCounts": deleted_counts
         }
 
-    def get_active_rule_set(self, year: int, quarter: str) -> Optional[Dict[str, Any]]:
-        """
-        Get the active rule set for a specific year and quarter.
-
-        Args:
-            year: Tax year
-            quarter: Tax quarter
-
-        Returns:
-            Dictionary with active rule set information or None
-        """
-        rule_set = (
-            self.db.query(SaltRuleSet)
-            .filter(
-                SaltRuleSet.year == year,
-                SaltRuleSet.quarter == quarter,
-                SaltRuleSet.status == RuleSetStatus.ACTIVE
-            )
-            .first()
-        )
-
-        if rule_set:
-            return {
-                "id": str(rule_set.id),
-                "year": rule_set.year,
-                "quarter": rule_set.quarter.value,
-                "version": rule_set.version,
-                "effectiveDate": rule_set.effective_date.isoformat(),
-                "publishedAt": rule_set.published_at.isoformat() + "Z" if rule_set.published_at else None
-            }
-
-        return None
 
 
  
