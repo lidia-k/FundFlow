@@ -37,7 +37,7 @@ FundFlow/
 │   │   ├── hooks/          # Custom React hooks
 │   │   ├── types/          # TypeScript type definitions
 │   │   └── utils/          # Frontend utility functions
-│   ├── tests/              # Frontend tests (Jest + Playwright)
+│   ├── tests/              # Frontend tests (Vitest + Playwright)
 │   │   ├── e2e/            # End-to-end tests
 │   │   └── fixtures/       # Test data and fixtures
 │   ├── public/             # Static assets
@@ -53,7 +53,7 @@ FundFlow/
 ├── archive/                # Archived files
 ├── .specify/               # Specify AI configuration
 ├── .serena/                # Serena MCP configuration
-├── .claude/                # Claude Code configuration
+├── .claude/                # Claude Code configuration and agents
 ├── docker-compose.yml      # Development environment
 ├── docker-compose.override.yml  # Local development overrides
 ├── Makefile               # Development commands
@@ -91,7 +91,7 @@ FundFlow/
 - **Build Tool**: Vite 4.0+
 - **Styling**: Tailwind CSS 3.3+
 - **HTTP Client**: axios
-- **Testing**: Jest, React Testing Library
+- **Testing**: Vitest, React Testing Library
 - **Code Quality**: ESLint, Prettier
 
 ## API Reference
@@ -147,23 +147,25 @@ FundFlow/
 ### Commands (Make targets)
 ```bash
 make dev          # Start Docker development environment
-make test         # Run all tests (backend + frontend)
+make test         # Run all tests in Docker containers
 make lint         # Run all linters and formatters
 make type-check   # TypeScript type checking
 make build        # Build production bundle
 make clean        # Clean Docker containers/images
 
-# Individual services
-make test-backend    # pytest only
-make test-frontend   # Jest only
+# Docker-based testing
+make test-backend    # pytest in Docker container
+make test-frontend   # Vitest in Docker container
+make test-local      # Run tests locally (requires setup)
 make lint-fix        # Auto-fix linting issues
 ```
 
 ### Testing Strategy
 - **Backend**: pytest with >90% coverage, focus on services and API endpoints
-- **Frontend**: Jest + RTL for components, integration tests for workflows
+- **Frontend**: Vitest + RTL for components, integration tests for workflows
 - **E2E**: Manual testing for upload-to-results workflow
 - **Test Data**: Sample Excel files in `data/test_files/`
+- **Docker Testing**: All tests run in Docker containers by default
 
 ## Current Status & Progress
 - ✅ Project structure setup
@@ -189,6 +191,7 @@ make lint-fix        # Auto-fix linting issues
 - ✅ **Project Onboarding Complete** - Comprehensive memory files created with project overview, tech stack, conventions, and development workflows
 - ✅ **Epic 2A SALT Rules Management** - Backend implementation for SALT rule management system with data models, services, and API endpoints
 - ✅ **Frontend UI Streamlining** - Removed upload navigation and UI elements to focus on SALT rules management workflow
+- ✅ **Docker Test Infrastructure** - Updated Makefile and added docker-test-runner agent for comprehensive Docker-based testing
 - 🎯 **Ready for user validation**: Working end-to-end prototype with all containers healthy
 
 ## Prototype Scope & Limitations
@@ -273,6 +276,13 @@ docker-compose logs backend    # Backend logs
 docker-compose logs frontend   # Frontend logs
 make logs                     # All application logs
 ```
+
+## Claude Code Agents
+### docker-test-runner
+- **Purpose**: Comprehensive test execution and failure analysis in Docker containers
+- **Usage**: Automated testing with detailed failure classification and fix recommendations
+- **Commands**: Uses `docker-compose exec -T` for running tests in containers
+- **Location**: `.claude/agents/docker-test-runner.md`
 
 ## MCP Playwright
 - Always run in headless mode
