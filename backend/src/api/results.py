@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 import io
 import csv
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,6 +13,7 @@ from ..services.session_service import SessionService
 from ..services.distribution_service import DistributionService
 from ..services.validation_service import ValidationService
 from ..services.tax_calculation_service import TaxCalculationService
+from ..models.investor_fund_commitment import InvestorFundCommitment
 
 router = APIRouter()
 
@@ -155,6 +156,24 @@ async def get_results_preview(
     distributions = distribution_service.get_distributions_by_session(session_id)
     limited_distributions = distributions[:limit]
 
+    # Preload commitment percentages for displayed investor/fund pairs
+    investor_ids = {dist.investor_id for dist in limited_distributions}
+    fund_codes = {dist.fund_code for dist in limited_distributions}
+    commitment_map = {}
+    if investor_ids and fund_codes:
+        commitments = (
+            db.query(InvestorFundCommitment)
+            .filter(InvestorFundCommitment.investor_id.in_(investor_ids))
+            .filter(InvestorFundCommitment.fund_code.in_(fund_codes))
+            .all()
+        )
+        for commitment in commitments:
+            commitment_map[(commitment.investor_id, commitment.fund_code)] = (
+                float(commitment.commitment_percentage)
+                if commitment.commitment_percentage is not None
+                else None
+            )
+
     # Format for display
     preview_data = []
     results_mode = mode == "results"
@@ -169,6 +188,9 @@ async def get_results_preview(
             "fund_code": dist.fund_code,
             "period": f"{fund.period_quarter} {fund.period_year}" if fund else None
         }
+
+        commitment_key = (dist.investor_id, dist.fund_code)
+        preview_entry["commitment_percentage"] = commitment_map.get(commitment_key)
 
         if results_mode:
             preview_entry["composite_tax_amount"] = (

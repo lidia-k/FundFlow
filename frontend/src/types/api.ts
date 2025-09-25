@@ -59,6 +59,7 @@ export interface ResultsPreviewRow {
   withholding_exemption?: string;
   composite_tax_amount?: number | null;
   withholding_tax_amount?: number | null;
+  commitment_percentage?: number | null;
 }
 
 export interface ResultsPreviewResponse {
