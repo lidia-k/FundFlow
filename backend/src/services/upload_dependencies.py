@@ -6,12 +6,16 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from ..database.connection import get_db
+from .distribution_service import DistributionService
 from .excel_service import ExcelService
-from .file_handling_service import FileHandlingService
-from .salt_rule_service import SaltRuleService
+from .fund_service import FundService
+from .fund_source_data_service import FundSourceDataService
+from .investor_service import InvestorService
 from .session_service import SessionService
 from .tax_calculation_service import TaxCalculationService
 from .upload_service_factory import UploadServiceDependencies
+from .user_service import UserService
+from .validators import ExcelValidator, FileValidator
 
 
 @lru_cache()
@@ -21,9 +25,20 @@ def get_excel_service() -> ExcelService:
 
 
 @lru_cache()
-def get_file_handling_service() -> FileHandlingService:
-    """Get file handling service singleton."""
-    return FileHandlingService()
+def get_file_validator() -> FileValidator:
+    """Get file validator singleton."""
+    return FileValidator()
+
+
+@lru_cache()
+def get_excel_validator() -> ExcelValidator:
+    """Get Excel validator singleton."""
+    return ExcelValidator()
+
+
+def get_user_service(db: Session = Depends(get_db)) -> UserService:
+    """Get user service with database dependency."""
+    return UserService(db)
 
 
 def get_session_service(db: Session = Depends(get_db)) -> SessionService:
@@ -31,30 +46,53 @@ def get_session_service(db: Session = Depends(get_db)) -> SessionService:
     return SessionService(db)
 
 
-def get_salt_rule_service(db: Session = Depends(get_db)) -> SaltRuleService:
-    """Get SALT rule service with database dependency."""
-    return SaltRuleService(db)
+def get_investor_service(db: Session = Depends(get_db)) -> InvestorService:
+    """Get investor service with database dependency."""
+    return InvestorService(db)
 
 
-def get_tax_calculation_service(
-    salt_rule_service: SaltRuleService = Depends(get_salt_rule_service),
-) -> TaxCalculationService:
-    """Get tax calculation service with dependencies."""
-    return TaxCalculationService(salt_rule_service)
+def get_fund_service(db: Session = Depends(get_db)) -> FundService:
+    """Get fund service with database dependency."""
+    return FundService(db)
+
+
+def get_fund_source_data_service(db: Session = Depends(get_db)) -> FundSourceDataService:
+    """Get fund source data service with database dependency."""
+    return FundSourceDataService(db)
+
+
+def get_distribution_service(db: Session = Depends(get_db)) -> DistributionService:
+    """Get distribution service with database dependency."""
+    return DistributionService(db)
+
+
+def get_tax_calculation_service(db: Session = Depends(get_db)) -> TaxCalculationService:
+    """Get tax calculation service with database dependency."""
+    return TaxCalculationService(db)
 
 
 def get_upload_services(
-    excel_service: ExcelService = Depends(get_excel_service),
-    file_handling_service: FileHandlingService = Depends(get_file_handling_service),
+    user_service: UserService = Depends(get_user_service),
     session_service: SessionService = Depends(get_session_service),
-    salt_rule_service: SaltRuleService = Depends(get_salt_rule_service),
+    excel_service: ExcelService = Depends(get_excel_service),
+    investor_service: InvestorService = Depends(get_investor_service),
+    fund_service: FundService = Depends(get_fund_service),
+    fund_source_data_service: FundSourceDataService = Depends(get_fund_source_data_service),
+    distribution_service: DistributionService = Depends(get_distribution_service),
     tax_calculation_service: TaxCalculationService = Depends(get_tax_calculation_service),
+    file_validator: FileValidator = Depends(get_file_validator),
+    excel_validator: ExcelValidator = Depends(get_excel_validator),
 ) -> UploadServiceDependencies:
     """Get all upload services with proper dependency injection."""
     return UploadServiceDependencies(
-        excel_service=excel_service,
-        file_handling_service=file_handling_service,
+        user_service=user_service,
         session_service=session_service,
-        salt_rule_service=salt_rule_service,
+        excel_service=excel_service,
+        investor_service=investor_service,
+        fund_service=fund_service,
+        fund_source_data_service=fund_source_data_service,
+        distribution_service=distribution_service,
         tax_calculation_service=tax_calculation_service,
+        file_validator=file_validator,
+        excel_validator=excel_validator,
     )
