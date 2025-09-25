@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from ..database.connection import get_db
 from ..exceptions.upload_exceptions import FileValidationException, UploadException
 from ..services.file_upload_orchestrator import FileUploadOrchestrator
-from ..services.upload_service_factory import UploadServiceFactory
+from ..services.upload_dependencies import get_upload_services
+from ..services.upload_service_factory import UploadServiceDependencies
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -17,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 @router.post("/upload")
 async def upload_file(
-    file: UploadFile = File(...), db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    services: UploadServiceDependencies = Depends(get_upload_services)
 ) -> dict[str, Any]:
     """
     Upload and process Excel file (v1.3 format).
@@ -25,8 +28,7 @@ async def upload_file(
     Returns session information and processing status.
     """
     try:
-        # Create services and orchestrator
-        services = UploadServiceFactory.create(db)
+        # Create orchestrator with injected services
         orchestrator = FileUploadOrchestrator(services, db)
 
         # Process upload through orchestrator

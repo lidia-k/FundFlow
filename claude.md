@@ -186,10 +186,10 @@ All new features MUST follow these established refactoring principles to maintai
 - **Example**: New file types → Create new validator class, don't modify existing `FileValidator`
 
 ### **Dependency Inversion Principle (DIP)**
-- **Inject dependencies**: Use factory pattern (`UploadServiceFactory`) for service creation
+- **Inject dependencies**: Use FastAPI `Depends()` for service injection
 - **Abstract interfaces**: Depend on abstractions (`UploadPipelineStep`) not concrete classes
 - **Testability**: All dependencies must be easily mockable for unit testing
-- **Example**: Controllers receive services via dependency injection, not direct instantiation
+- **Example**: Controllers receive services via FastAPI dependency injection, not direct instantiation
 
 ### **Established Patterns to Follow**
 
@@ -204,13 +204,18 @@ class WorkflowOrchestrator:
         return [Step1(services), Step2(services), Step3(services)]
 ```
 
-#### **Factory Pattern for Service Dependencies**
+#### **FastAPI Dependency Injection Pattern**
 ```python
-# Centralize service creation for consistent dependency injection
-class ServiceFactory:
-    @staticmethod
-    def create(db: Session) -> ServiceDependencies:
-        return ServiceDependencies(...)
+# Use FastAPI's dependency injection system for service creation
+@lru_cache()
+def get_service() -> Service:
+    return Service()
+
+def get_services(
+    service: Service = Depends(get_service),
+    db: Session = Depends(get_db)
+) -> ServiceDependencies:
+    return ServiceDependencies(service=service, db=db)
 ```
 
 #### **Custom Exception Hierarchy**
