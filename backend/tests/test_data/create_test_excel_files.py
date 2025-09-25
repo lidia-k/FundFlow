@@ -30,7 +30,7 @@ def create_test_excel_files():
         "Company": ["TechCorp Inc", "MedDevice LLC", "FinanceGroup LP", "TechCorp Inc"],
         "State": ["TX", "CA", "NY", "CA"],
         "Share (%)": [45.5, 25.0, 15.5, 14.0],
-        "Distribution Amount": [500000.00, 300000.00, 200000.00, 150000.00],
+        "Distribution": [500000.00, 300000.00, 200000.00, 150000.00],
     }
 
     filename1 = (
@@ -57,7 +57,7 @@ def create_test_excel_files():
             -5.0,  # Invalid negative percentage
             "invalid",  # Invalid format
         ],
-        "Distribution Amount": [
+        "Distribution": [
             500000.00,
             300000.00,
             -100000.00,  # Invalid negative amount
@@ -79,7 +79,7 @@ def create_test_excel_files():
         "CompanyName": ["TechCorp Inc"],  # Wrong header name
         "State": ["TX"],
         "Percentage": [45.5],  # Wrong header name
-        # Missing Distribution Amount column
+        # Missing Distribution column
     }
 
     filename3 = (
@@ -105,7 +105,7 @@ def create_test_excel_files():
     with pd.ExcelWriter(filename5, engine="openpyxl") as writer:
         pd.DataFrame(main_sheet_data).to_excel(writer, sheet_name="Sheet1", index=False)
         pd.DataFrame(
-            {"Company": [], "State": [], "Share (%)": [], "Distribution Amount": []}
+            {"Company": [], "State": [], "Share (%)": [], "Distribution": []}
         ).to_excel(writer, sheet_name="Fund Source Data", index=False)
 
     print("Test Excel files created successfully!")

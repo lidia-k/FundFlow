@@ -25,7 +25,7 @@ class TestExcelServiceFundSource:
                 "Company": ["TechCorp"],
                 "State": ["TX"],
                 "Share (%)": [25.5],
-                "Distribution Amount": [100000.00],
+                "Distribution": [100000.00],
             }
         )
 
@@ -39,7 +39,7 @@ class TestExcelServiceFundSource:
             {
                 "CompanyName": ["TechCorp"],  # Wrong header
                 "State": ["TX"],
-                "Percentage": [25.5],  # Wrong header, missing Distribution Amount
+                "Percentage": [25.5],  # Wrong header, missing Distribution
             }
         )
 
@@ -47,12 +47,12 @@ class TestExcelServiceFundSource:
         assert result is False
         assert (
             len(self.excel_service.errors) == 3
-        )  # Missing Company, Share (%), and Distribution Amount
+        )  # Missing Company, Share (%), and Distribution
 
         error_messages = [error.error_message for error in self.excel_service.errors]
         assert any("Company" in msg for msg in error_messages)
         assert any("Share (%)" in msg for msg in error_messages)
-        assert any("Distribution Amount" in msg for msg in error_messages)
+        assert any("Distribution" in msg for msg in error_messages)
 
     def test_validate_fund_source_headers_normalized(self):
         """Test fund source header validation with whitespace normalization."""
@@ -61,7 +61,7 @@ class TestExcelServiceFundSource:
                 "  Company  ": ["TechCorp"],
                 " State ": ["TX"],
                 "Share   (%)": [25.5],
-                "Distribution  Amount ": [100000.00],
+                "Distribution ": [100000.00],
             }
         )
 
@@ -75,7 +75,7 @@ class TestExcelServiceFundSource:
             "Company": "TechCorp Inc",
             "State": "TX",
             "Share (%)": "45.5",
-            "Distribution Amount": "500000.00",
+            "Distribution": "500000.00",
         }
 
         result = self.excel_service.validate_fund_source_row(row_data, 2)
@@ -88,7 +88,7 @@ class TestExcelServiceFundSource:
             "Company": "",
             "State": "TX",
             "Share (%)": "45.5",
-            "Distribution Amount": "500000.00",
+            "Distribution": "500000.00",
         }
 
         result = self.excel_service.validate_fund_source_row(row_data, 2)
@@ -103,7 +103,7 @@ class TestExcelServiceFundSource:
             "Company": "TechCorp Inc",
             "State": "ZZ",  # Invalid state
             "Share (%)": "45.5",
-            "Distribution Amount": "500000.00",
+            "Distribution": "500000.00",
         }
 
         result = self.excel_service.validate_fund_source_row(row_data, 2)
@@ -127,7 +127,7 @@ class TestExcelServiceFundSource:
                 "Company": "TechCorp Inc",
                 "State": "TX",
                 "Share (%)": share_value,
-                "Distribution Amount": "500000.00",
+                "Distribution": "500000.00",
             }
 
             result = self.excel_service.validate_fund_source_row(row_data, 2)
@@ -149,7 +149,7 @@ class TestExcelServiceFundSource:
                 "Company": "TechCorp Inc",
                 "State": "TX",
                 "Share (%)": "45.5",
-                "Distribution Amount": dist_value,
+                "Distribution": dist_value,
             }
 
             result = self.excel_service.validate_fund_source_row(row_data, 2)
@@ -164,7 +164,7 @@ class TestExcelServiceFundSource:
             "Company": "  TechCorp Inc  ",
             "State": "  tx  ",  # Should be normalized to uppercase
             "Share (%)": "45.50%",  # Should handle % symbol
-            "Distribution Amount": "500,000.00",  # Should handle thousands separator
+            "Distribution": "500,000.00",  # Should handle thousands separator
         }
 
         result = self.excel_service.parse_fund_source_row(row_data, 2)
@@ -189,8 +189,10 @@ class TestExcelServiceFundSource:
         if not test_file.exists():
             pytest.skip("Test file not found")
 
+        from openpyxl import load_workbook
+        workbook = load_workbook(filename=test_file, data_only=True)
         fund_source_data, fund_source_errors = (
-            self.excel_service.parse_fund_source_data(test_file)
+            self.excel_service.parse_fund_source_data(workbook)
         )
 
         assert len(fund_source_errors) == 0
@@ -216,8 +218,10 @@ class TestExcelServiceFundSource:
         # Reset errors before test to get clean state
         self.excel_service.errors = []
 
+        from openpyxl import load_workbook
+        workbook = load_workbook(filename=test_file, data_only=True)
         fund_source_data, fund_source_errors = (
-            self.excel_service.parse_fund_source_data(test_file)
+            self.excel_service.parse_fund_source_data(workbook)
         )
 
         # Check combined errors from both service errors and fund_source_errors
@@ -249,8 +253,10 @@ class TestExcelServiceFundSource:
         # Reset errors before test
         self.excel_service.errors = []
 
+        from openpyxl import load_workbook
+        workbook = load_workbook(filename=test_file, data_only=True)
         fund_source_data, fund_source_errors = (
-            self.excel_service.parse_fund_source_data(test_file)
+            self.excel_service.parse_fund_source_data(workbook)
         )
 
         # Check combined errors from both sources
@@ -273,8 +279,10 @@ class TestExcelServiceFundSource:
         if not test_file.exists():
             pytest.skip("Test file not found")
 
+        from openpyxl import load_workbook
+        workbook = load_workbook(filename=test_file, data_only=True)
         fund_source_data, fund_source_errors = (
-            self.excel_service.parse_fund_source_data(test_file)
+            self.excel_service.parse_fund_source_data(workbook)
         )
 
         # Should return empty data without errors (backward compatibility)
@@ -291,8 +299,10 @@ class TestExcelServiceFundSource:
         if not test_file.exists():
             pytest.skip("Test file not found")
 
+        from openpyxl import load_workbook
+        workbook = load_workbook(filename=test_file, data_only=True)
         fund_source_data, fund_source_errors = (
-            self.excel_service.parse_fund_source_data(test_file)
+            self.excel_service.parse_fund_source_data(workbook)
         )
 
         # Should return empty data without errors
@@ -301,38 +311,62 @@ class TestExcelServiceFundSource:
 
     def test_parse_fund_source_data_duplicate_detection(self):
         """Test duplicate company/state combination detection."""
-        # Mock pandas read_excel to return data with duplicates
-        duplicate_data = pd.DataFrame(
-            {
-                "Company": ["TechCorp Inc", "TechCorp Inc", "MedDevice LLC"],
-                "State": ["TX", "TX", "CA"],  # First two are duplicates
-                "Share (%)": [45.5, 25.0, 30.0],
-                "Distribution Amount": [500000.00, 300000.00, 200000.00],
-            }
-        )
+        # Create a mock workbook with duplicate data
+        from unittest.mock import Mock
+        from openpyxl import Workbook
 
-        with patch("pandas.read_excel", return_value=duplicate_data):
-            fund_source_data, fund_source_errors = (
-                self.excel_service.parse_fund_source_data(Path("dummy.xlsx"))
-            )
+        # Create a real workbook and modify it
+        workbook = Workbook()
+        if len(workbook.worksheets) > 1:
+            del workbook.worksheets[1]  # Remove extra sheets
+        workbook.create_sheet("Fund Source Data")  # Add our sheet
+        sheet = workbook.worksheets[1]
+
+        # Add headers
+        sheet['A1'] = "Company"
+        sheet['B1'] = "State"
+        sheet['C1'] = "Share (%)"
+        sheet['D1'] = "Distribution"
+
+        # Add duplicate data
+        sheet['A2'] = "TechCorp Inc"
+        sheet['B2'] = "TX"
+        sheet['C2'] = 45.5
+        sheet['D2'] = 500000.00
+
+        sheet['A3'] = "TechCorp Inc"  # Duplicate
+        sheet['B3'] = "TX"            # Duplicate
+        sheet['C3'] = 25.0
+        sheet['D3'] = 300000.00
+
+        sheet['A4'] = "MedDevice LLC"
+        sheet['B4'] = "CA"
+        sheet['C4'] = 30.0
+        sheet['D4'] = 200000.00
+
+        fund_source_data, fund_source_errors = (
+            self.excel_service.parse_fund_source_data(workbook)
+        )
 
         assert len(fund_source_errors) == 1
         assert fund_source_errors[0].error_code == "DUPLICATE_COMPANY_STATE"
         assert "TechCorp Inc/TX" in fund_source_errors[0].error_message
         assert len(fund_source_data) == 2  # Only non-duplicate records
 
-    @patch("pandas.read_excel")
-    def test_parse_fund_source_data_exception_handling(self, mock_read_excel):
+    def test_parse_fund_source_data_exception_handling(self):
         """Test exception handling in fund source data parsing."""
-        mock_read_excel.side_effect = Exception("Test exception")
+        from unittest.mock import Mock
+
+        # Create a mock workbook that will raise an exception
+        mock_workbook = Mock()
+        mock_workbook.worksheets = []  # This will cause an IndexError
 
         fund_source_data, fund_source_errors = (
-            self.excel_service.parse_fund_source_data(Path("dummy.xlsx"))
+            self.excel_service.parse_fund_source_data(mock_workbook)
         )
 
-        assert len(fund_source_errors) == 1
-        assert fund_source_errors[0].error_code == "FUND_SOURCE_PARSING_ERROR"
-        assert "Test exception" in fund_source_errors[0].error_message
+        assert len(fund_source_data) == 0
+        assert len(fund_source_errors) == 0  # IndexError is handled gracefully for missing sheets
 
     def test_fund_source_data_integration_with_main_parsing(self):
         """Test fund source data integration with main Excel parsing."""

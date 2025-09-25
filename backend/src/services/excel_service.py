@@ -72,7 +72,7 @@ class ExcelService:
         "Company",
         "State",
         "Share (%)",
-        "Distribution Amount",
+        "Distribution",
     ]
 
     # Valid entity types
@@ -593,17 +593,17 @@ class ExcelService:
 
         # Validate distribution amount (must be positive)
         dist_amount = self.parse_numeric_value(
-            row_data.get("Distribution Amount"), "Distribution Amount", row_num
+            row_data.get("Distribution"), "Distribution", row_num
         )
         if dist_amount <= 0:
             self.errors.append(
                 ExcelValidationError(
                     row_number=row_num,
-                    column_name="Distribution Amount",
+                    column_name="Distribution",
                     error_code="INVALID_DISTRIBUTION_AMOUNT",
                     error_message="Distribution amount must be positive",
                     severity=ErrorSeverity.ERROR,
-                    field_value=str(row_data.get("Distribution Amount")),
+                    field_value=str(row_data.get("Distribution")),
                 )
             )
             is_valid = False
@@ -634,11 +634,11 @@ class ExcelService:
         try:
             headers, rows = self._load_sheet_rows(workbook, 1)
 
-            # Remove empty company rows
+            # Remove completely empty rows by checking if any cell has data
             filtered_rows = [
                 (row_num, row)
                 for row_num, row in rows
-                if not self._is_empty_value(row.get("Company"))
+                if any(not self._is_empty_value(value) for value in row.values())
             ]
 
             if not filtered_rows:
@@ -646,7 +646,10 @@ class ExcelService:
 
             # Validate headers
             if not self.validate_fund_source_headers(headers):
-                return [], self.errors
+                # Move errors from self.errors to fund_source_errors
+                header_errors = self.errors[:]
+                self.errors = []  # Clear service errors since we're returning them separately
+                return [], header_errors
 
             valid_fund_source_data: list[dict[str, Any]] = []
             company_state_combinations = set()

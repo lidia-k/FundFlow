@@ -170,6 +170,103 @@ FundFlow/
 - **Types**: Shared types in `types/` directory
 - **Utils**: Pure functions, well-tested utilities
 
+## SOLID Architecture Patterns (MANDATORY)
+All new features MUST follow these established refactoring principles to maintain clean, maintainable code:
+
+### **Single Responsibility Principle (SRP)**
+- **One concern per class/module**: Each service, validator, or pipeline step handles exactly one responsibility
+- **API endpoints**: Only coordinate workflows, delegate all business logic to services
+- **Example**: `FileValidator` only validates files, `ExcelValidator` only validates Excel content
+- **Red Flag**: If a class has multiple reasons to change, split it
+
+### **Open/Closed Principle (OCP)**
+- **Extend through composition**: Add new features by creating new classes, not modifying existing ones
+- **Pipeline pattern**: Add new processing steps by implementing `UploadPipelineStep` interface
+- **Validation**: Add new validators by extending base validator classes
+- **Example**: New file types → Create new validator class, don't modify existing `FileValidator`
+
+### **Dependency Inversion Principle (DIP)**
+- **Inject dependencies**: Use factory pattern (`UploadServiceFactory`) for service creation
+- **Abstract interfaces**: Depend on abstractions (`UploadPipelineStep`) not concrete classes
+- **Testability**: All dependencies must be easily mockable for unit testing
+- **Example**: Controllers receive services via dependency injection, not direct instantiation
+
+### **Established Patterns to Follow**
+
+#### **Pipeline Pattern for Complex Workflows**
+```python
+# Use for multi-step processes like upload, processing, etc.
+class WorkflowOrchestrator:
+    def __init__(self, services: ServiceDependencies):
+        self.pipeline = self._create_pipeline()
+
+    def _create_pipeline(self) -> List[PipelineStep]:
+        return [Step1(services), Step2(services), Step3(services)]
+```
+
+#### **Factory Pattern for Service Dependencies**
+```python
+# Centralize service creation for consistent dependency injection
+class ServiceFactory:
+    @staticmethod
+    def create(db: Session) -> ServiceDependencies:
+        return ServiceDependencies(...)
+```
+
+#### **Custom Exception Hierarchy**
+```python
+# Create specific exceptions for different failure modes
+class FeatureException(Exception): pass
+class ValidationException(FeatureException): pass
+class ProcessingException(FeatureException): pass
+```
+
+#### **Context Objects for State Management**
+```python
+# Use context objects to pass state through pipeline steps
+@dataclass
+class ProcessContext:
+    input_data: Any
+    processing_state: Dict
+    results: Dict
+```
+
+### **File Organization Standards**
+```
+📁 services/
+├── feature_orchestrator.py          # Main workflow coordinator
+├── feature_service_factory.py       # Dependency injection
+├── validators/                       # Validation logic
+│   ├── __init__.py
+│   ├── input_validator.py
+│   └── business_validator.py
+├── pipeline/                         # Processing steps
+│   ├── __init__.py
+│   ├── base.py                      # Abstract base class
+│   ├── step1.py
+│   └── step2.py
+📁 exceptions/
+└── feature_exceptions.py           # Custom exceptions
+📁 models/
+└── feature_context.py              # State management
+```
+
+### **Mandatory Code Review Checklist**
+- [ ] **SRP**: Does each class have exactly one responsibility?
+- [ ] **OCP**: Can new features be added without modifying existing code?
+- [ ] **DIP**: Are dependencies injected rather than instantiated directly?
+- [ ] **Pipeline**: Is complex logic broken into discrete, testable steps?
+- [ ] **Exceptions**: Are custom exceptions used for different failure modes?
+- [ ] **Context**: Is state managed through context objects?
+- [ ] **Factory**: Are services created through factory methods?
+
+### **Anti-Patterns to Avoid**
+- ❌ **God Classes**: Classes with 200+ lines or multiple responsibilities
+- ❌ **Direct Instantiation**: `service = SomeService()` in controllers
+- ❌ **Mixed Concerns**: Business logic in API endpoints
+- ❌ **Exception Swallowing**: Generic `except Exception` without specific handling
+- ❌ **Tight Coupling**: Classes that can't be unit tested in isolation
+
 ## Development Workflow
 ### Commands (Make targets)
 ```bash
