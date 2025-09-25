@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Union
 
 from sqlalchemy.orm import Session
 
@@ -65,7 +65,7 @@ class InvestorService:
         self,
         investor: Investor,
         fund: "Fund",
-        commitment_percentage: Decimal | float | int,
+        commitment_percentage: Union[Decimal, float, int],
     ) -> InvestorFundCommitment:
         """Create or update investor commitment percentage for a fund."""
         existing = (

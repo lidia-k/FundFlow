@@ -1,7 +1,7 @@
 """Excel file validation and parsing service."""
 
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import pandas as pd
@@ -71,6 +71,7 @@ class ExcelService:
             'withholding_exemption': {},
             'composite_exemption': {}
         }
+        self._seen_investors = set()
 
 
     def extract_fund_info_from_filename(self, filename: str) -> Optional[Dict[str, str]]:
@@ -230,19 +231,51 @@ class ExcelService:
         str_value = str(value).strip().lower()
         return str_value in ["exemption", "x", "true", "yes", "1"]
 
-    def parse_percentage_value(self, value: Any) -> Optional[Decimal]:
-        """Parse percentage value (for v1.3 format, ignored for now)."""
-        if pd.isna(value) or value == "":
+    def _parse_and_validate_commitment_percentage(
+        self,
+        value: Any,
+        row_num: int
+    ) -> Optional[Decimal]:
+        """Parse commitment percentage ensuring required format and bounds."""
+        if pd.isna(value) or str(value).strip() == "":
+            self.errors.append(ExcelValidationError(
+                row_number=row_num,
+                column_name='Commitment Percentage',
+                error_code="EMPTY_FIELD",
+                error_message="Commitment Percentage is required",
+                severity=ErrorSeverity.ERROR
+            ))
             return None
 
-        str_value = str(value).strip()
-        # Remove % symbol if present
-        str_value = str_value.replace('%', '')
+        str_value = str(value).strip().replace('%', '')
 
         try:
-            return Decimal(str_value)
+            decimal_value = Decimal(str_value)
         except (InvalidOperation, ValueError):
+            self.errors.append(ExcelValidationError(
+                row_number=row_num,
+                column_name='Commitment Percentage',
+                error_code="INVALID_PERCENTAGE_FORMAT",
+                error_message=f"Invalid percentage format: {str_value}",
+                severity=ErrorSeverity.ERROR,
+                field_value=str_value
+            ))
             return None
+
+        normalized_value = decimal_value.quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+
+        if normalized_value < Decimal('0') or normalized_value > Decimal('100'):
+            self.errors.append(ExcelValidationError(
+                row_number=row_num,
+                column_name='Commitment Percentage',
+                error_code="PERCENTAGE_OUT_OF_RANGE",
+                error_message="Commitment Percentage must be between 0 and 100",
+                severity=ErrorSeverity.ERROR,
+                field_value=str(normalized_value)
+            ))
+            return None
+
+        return normalized_value
 
     def validate_base_fields(self, row_data: Dict[str, Any], row_num: int) -> bool:
         """Validate common fields present in both formats."""
@@ -286,11 +319,38 @@ class ExcelService:
             ))
             is_valid = False
 
+        parsed_commitment = self._parse_and_validate_commitment_percentage(
+            row_data.get('Commitment Percentage'),
+            row_num
+        )
+        if parsed_commitment is None:
+            is_valid = False
+        else:
+            row_data['_parsed_commitment_percentage'] = parsed_commitment
+
         return is_valid
 
     def validate_row_data(self, row_data: Dict[str, Any], row_num: int) -> bool:
         """Validate row data for v1.3 format."""
         is_valid = self.validate_base_fields(row_data, row_num)
+
+        if is_valid:
+            investor_key = (
+                str(row_data.get('Investor Name', '')).strip().lower(),
+                str(row_data.get('Investor Entity Type', '')).strip(),
+                str(row_data.get('Investor Tax State', '')).strip().upper()
+            )
+            if investor_key in self._seen_investors:
+                self.errors.append(ExcelValidationError(
+                    row_number=row_num,
+                    column_name='Investor Name',
+                    error_code="DUPLICATE_INVESTOR",
+                    error_message="Duplicate investor rows detected in upload",
+                    severity=ErrorSeverity.ERROR
+                ))
+                is_valid = False
+            else:
+                self._seen_investors.add(investor_key)
 
         # Check for at least one distribution amount > 0
         has_distribution = False
@@ -321,9 +381,7 @@ class ExcelService:
             'row_number': row_num
         }
 
-        # Parse percentage (ignore for processing but store)
-        if 'Commitment Percentage' in row_data:
-            parsed_row['commitment_percentage'] = self.parse_percentage_value(row_data['Commitment Percentage'])
+        parsed_row['commitment_percentage'] = row_data.get('_parsed_commitment_percentage')
 
         # Parse distribution amounts by state
         parsed_row['distributions'] = {}
@@ -348,6 +406,7 @@ class ExcelService:
     def parse_excel_file(self, file_path: Path, original_filename: str) -> ExcelParsingResult:
         """Parse Excel file and validate data (v1.3 format)."""
         self.errors = []  # Reset errors
+        self._seen_investors = set()
 
         # Validate file size
         if not self.validate_file_size(file_path):
