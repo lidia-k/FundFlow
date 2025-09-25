@@ -1,6 +1,7 @@
 """Database connection and session management."""
 
 import os
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -11,17 +12,22 @@ def _ensure_distribution_tax_columns(engine, database_url: str) -> None:
     with engine.connect() as connection:
         if "sqlite" in database_url:
             existing_columns = {
-                row[1] for row in connection.execute(text("PRAGMA table_info(distributions);"))
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(distributions);"))
             }
 
             if "composite_tax_amount" not in existing_columns:
                 connection.execute(
-                    text("ALTER TABLE distributions ADD COLUMN composite_tax_amount NUMERIC(12,2)")
+                    text(
+                        "ALTER TABLE distributions ADD COLUMN composite_tax_amount NUMERIC(12,2)"
+                    )
                 )
 
             if "withholding_tax_amount" not in existing_columns:
                 connection.execute(
-                    text("ALTER TABLE distributions ADD COLUMN withholding_tax_amount NUMERIC(12,2)")
+                    text(
+                        "ALTER TABLE distributions ADD COLUMN withholding_tax_amount NUMERIC(12,2)"
+                    )
                 )
         else:
             connection.execute(
@@ -37,6 +43,7 @@ def _ensure_distribution_tax_columns(engine, database_url: str) -> None:
 
         connection.commit()
 
+
 # Database URL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/fundflow.db")
 
@@ -44,7 +51,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/fundflow.db")
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
-    echo=os.getenv("DEBUG", "false").lower() == "true"
+    echo=os.getenv("DEBUG", "false").lower() == "true",
 )
 
 # Create SessionLocal class

@@ -6,8 +6,9 @@ from pathlib import Path
 import pytest
 
 try:
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 except ImportError:  # pragma: no cover - environment dependent
     pytest.skip("Alembic is not available", allow_module_level=True)
 from sqlalchemy import Engine, create_engine, text
@@ -130,7 +131,9 @@ def test_upgrade_migrates_period_metadata(tmp_path, monkeypatch):
     command.upgrade(alembic_cfg, "head")
 
     with engine.connect() as conn:
-        funds = conn.execute(text("SELECT fund_code, period_quarter, period_year FROM funds"))
+        funds = conn.execute(
+            text("SELECT fund_code, period_quarter, period_year FROM funds")
+        )
         fund_row = funds.fetchone()
         assert fund_row == ("FUNDLEG", "Q2", 2023)
 
@@ -147,7 +150,9 @@ def test_upgrade_migrates_period_metadata(tmp_path, monkeypatch):
         ).fetchone()
         assert dist_row == ("FUNDLEG", "NY", 5000.0)
 
-        commitments = conn.execute(text("SELECT COUNT(*) FROM investor_fund_commitments"))
+        commitments = conn.execute(
+            text("SELECT COUNT(*) FROM investor_fund_commitments")
+        )
         assert commitments.fetchone()[0] == 0
 
         sources = conn.execute(text("SELECT COUNT(*) FROM fund_source_data"))

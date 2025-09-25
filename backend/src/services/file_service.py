@@ -2,10 +2,10 @@
 
 import logging
 import shutil
-from pathlib import Path
-from typing import Dict, Optional, Tuple
-from uuid import uuid4
 from datetime import datetime
+from pathlib import Path
+from uuid import uuid4
+
 from sqlalchemy.orm import Session
 
 from ..models.source_file import SourceFile
@@ -17,9 +17,7 @@ class FileStorageResult:
     """Result of file storage operation."""
 
     def __init__(
-        self,
-        source_file: Optional[SourceFile],
-        error_message: Optional[str] = None
+        self, source_file: SourceFile | None, error_message: str | None = None
     ):
         self.source_file = source_file
         self.error_message = error_message
@@ -40,7 +38,7 @@ class FileService:
         # Allowed content types
         self.allowed_content_types = {
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-excel.sheet.macroEnabled.12"
+            "application/vnd.ms-excel.sheet.macroEnabled.12",
         }
 
     def store_uploaded_file(
@@ -50,7 +48,7 @@ class FileService:
         content_type: str,
         uploaded_by: str,
         year: int,
-        quarter: str
+        quarter: str,
     ) -> FileStorageResult:
         """
         Store uploaded file, overriding any existing file.
@@ -72,14 +70,14 @@ class FileService:
             if file_size > self.max_file_size:
                 return FileStorageResult(
                     source_file=None,
-                    error_message=f"File size {file_size} exceeds maximum allowed size {self.max_file_size}"
+                    error_message=f"File size {file_size} exceeds maximum allowed size {self.max_file_size}",
                 )
 
             # Validate content type
             if content_type not in self.allowed_content_types:
                 return FileStorageResult(
                     source_file=None,
-                    error_message=f"Content type '{content_type}' not allowed"
+                    error_message=f"Content type '{content_type}' not allowed",
                 )
 
             # Generate storage path and copy file
@@ -87,12 +85,16 @@ class FileService:
             secure_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Check for existing SourceFile with same filepath and delete it
-            existing_source_file = self.db.query(SourceFile).filter(
-                SourceFile.filepath == str(secure_path)
-            ).first()
+            existing_source_file = (
+                self.db.query(SourceFile)
+                .filter(SourceFile.filepath == str(secure_path))
+                .first()
+            )
 
             if existing_source_file:
-                logger.info(f"Found existing source file with same path, deleting: {existing_source_file.filepath}")
+                logger.info(
+                    f"Found existing source file with same path, deleting: {existing_source_file.filepath}"
+                )
                 self.db.delete(existing_source_file)
                 self.db.commit()
 
@@ -106,41 +108,28 @@ class FileService:
                 file_size=file_size,
                 content_type=content_type,
                 upload_timestamp=datetime.now(),
-                uploaded_by=uploaded_by
+                uploaded_by=uploaded_by,
             )
 
             self.db.add(source_file)
             self.db.commit()
             self.db.refresh(source_file)
 
-            logger.info(f"File stored successfully: {original_filename} -> {secure_path}")
-
-            return FileStorageResult(
-                source_file=source_file
+            logger.info(
+                f"File stored successfully: {original_filename} -> {secure_path}"
             )
+
+            return FileStorageResult(source_file=source_file)
 
         except Exception as e:
             logger.error(f"Error storing file {original_filename}: {str(e)}")
             return FileStorageResult(
-                source_file=None,
-                error_message=f"Storage error: {str(e)}"
+                source_file=None, error_message=f"Storage error: {str(e)}"
             )
-
-
-
-
-
-
 
     def _generate_storage_path(
         self, year: int, quarter: str, original_filename: str
     ) -> Path:
         """Generate storage path for uploaded file."""
         # Create path: storage_root/year/quarter/filename
-        return (
-            self.storage_root
-            / str(year)
-            / quarter.lower()
-            / original_filename
-        )
-
+        return self.storage_root / str(year) / quarter.lower() / original_filename

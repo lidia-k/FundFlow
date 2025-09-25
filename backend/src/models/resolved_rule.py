@@ -1,21 +1,22 @@
 """StateEntityTaxRuleResolved model for denormalized view combining withholding and composite rules."""
 
 import uuid
-from datetime import datetime, date
-from decimal import Decimal
+from datetime import datetime
+
 from sqlalchemy import (
-    Column,
-    String,
-    DateTime,
-    Date,
-    ForeignKey,
+    DECIMAL,
     Boolean,
     CheckConstraint,
-    UniqueConstraint,
+    Column,
+    Date,
+    DateTime,
     Enum as SQLEnum,
-    DECIMAL,
+    ForeignKey,
+    String,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
+
 from ..database.connection import Base
 from .enums import USJurisdiction
 

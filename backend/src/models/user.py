@@ -1,8 +1,10 @@
 """User model for FundFlow application."""
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime
+
+from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
+
 from ..database.connection import Base
 
 
@@ -20,4 +22,6 @@ class User(Base):
     sessions = relationship("UserSession", back_populates="user")
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, email='{self.email}', company='{self.company_name}')>"
+        return (
+            f"<User(id={self.id}, email='{self.email}', company='{self.company_name}')>"
+        )

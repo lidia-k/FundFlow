@@ -2,18 +2,20 @@
 
 from datetime import datetime
 from decimal import Decimal
+
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    DateTime,
-    ForeignKey,
     Boolean,
-    Numeric,
+    Column,
+    DateTime,
     Enum as SQLEnum,
+    ForeignKey,
     Index,
+    Integer,
+    Numeric,
+    String,
 )
 from sqlalchemy.orm import relationship
+
 from ..database.connection import Base
 from .enums import USJurisdiction
 
@@ -25,10 +27,14 @@ class Distribution(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     investor_id = Column(Integer, ForeignKey("investors.id"), nullable=False)
-    session_id = Column(String(36), ForeignKey("user_sessions.session_id"), nullable=False)
+    session_id = Column(
+        String(36), ForeignKey("user_sessions.session_id"), nullable=False
+    )
     fund_code = Column(String(50), ForeignKey("funds.fund_code"), nullable=False)
     jurisdiction = Column(SQLEnum(USJurisdiction), nullable=False)
-    amount = Column(Numeric(precision=12, scale=2), nullable=False, default=Decimal('0.00'))
+    amount = Column(
+        Numeric(precision=12, scale=2), nullable=False, default=Decimal("0.00")
+    )
     composite_exemption = Column(Boolean, nullable=False, default=False)
     withholding_exemption = Column(Boolean, nullable=False, default=False)
     composite_tax_amount = Column(Numeric(precision=12, scale=2), nullable=True)
@@ -50,5 +56,5 @@ Index(
     Distribution.investor_id,
     Distribution.fund_code,
     Distribution.jurisdiction,
-    unique=True
+    unique=True,
 )

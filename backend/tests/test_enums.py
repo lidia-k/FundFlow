@@ -1,6 +1,7 @@
 """Tests for enum models."""
 
 import pytest
+
 from src.models.enums import InvestorEntityType, USJurisdiction
 
 
@@ -47,7 +48,9 @@ class TestInvestorEntityType:
         }
 
         for entity_type, expected_coding in expected_mappings.items():
-            assert entity_type.coding == expected_coding, f"Expected {entity_type} to have coding '{expected_coding}', got '{entity_type.coding}'"
+            assert (
+                entity_type.coding == expected_coding
+            ), f"Expected {entity_type} to have coding '{expected_coding}', got '{entity_type.coding}'"
 
     def test_get_by_coding_success(self):
         """Test successful retrieval by coding value."""
@@ -60,7 +63,9 @@ class TestInvestorEntityType:
 
     def test_get_by_coding_not_found(self):
         """Test error when coding value not found."""
-        with pytest.raises(ValueError, match="No entity type found for coding: NonExistent"):
+        with pytest.raises(
+            ValueError, match="No entity type found for coding: NonExistent"
+        ):
             InvestorEntityType.get_by_coding("NonExistent")
 
     def test_get_all_codings(self):
@@ -83,8 +88,14 @@ class TestInvestorEntityType:
 
         # Expected unique codings based on the table
         expected_unique = {
-            "Corporation", "Partnership", "Exempt Org", "Individual",
-            "Trust", "S Corporation", "IRA", "Estate"
+            "Corporation",
+            "Partnership",
+            "Exempt Org",
+            "Individual",
+            "Trust",
+            "S Corporation",
+            "IRA",
+            "Estate",
         }
 
         assert unique_codings == expected_unique
@@ -98,15 +109,21 @@ class TestInvestorEntityType:
 
         # Based on the enum, Partnership should be the most common
         assert coding_counts["Partnership"] >= 5  # LLP, LIMITED_PARTNERSHIP, etc.
-        assert coding_counts["Exempt Org"] >= 4   # Multiple benefit plan types
-        assert coding_counts["Individual"] >= 2   # INDIVIDUAL, JOINT_TENANCY, GRANTOR_TRUST
-        assert coding_counts["Corporation"] >= 2  # CORPORATION, LLC_TAXED_AS_CORPORATION
+        assert coding_counts["Exempt Org"] >= 4  # Multiple benefit plan types
+        assert (
+            coding_counts["Individual"] >= 2
+        )  # INDIVIDUAL, JOINT_TENANCY, GRANTOR_TRUST
+        assert (
+            coding_counts["Corporation"] >= 2
+        )  # CORPORATION, LLC_TAXED_AS_CORPORATION
 
     def test_backward_compatibility(self):
         """Test that existing enum usage still works."""
         # Test that we can still access the display value
         assert str(InvestorEntityType.CORPORATION.value) == "Corporation"
-        assert str(InvestorEntityType.LIMITED_PARTNERSHIP.value) == "Limited Partnership"
+        assert (
+            str(InvestorEntityType.LIMITED_PARTNERSHIP.value) == "Limited Partnership"
+        )
 
         # Test enum comparison
         assert InvestorEntityType.CORPORATION == InvestorEntityType.CORPORATION

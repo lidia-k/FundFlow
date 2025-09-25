@@ -197,9 +197,13 @@ dev = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "black" },
     { name = "httpx" },
+    { name = "isort" },
+    { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "ruff" },
     { name = "vulture" },
 ]
 
@@ -229,9 +233,13 @@ provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "black", specifier = ">=25.1.0" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "isort", specifier = ">=6.0.1" },
+    { name = "mypy", specifier = ">=1.18.1" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-asyncio", specifier = ">=1.2.0" },
+    { name = "ruff", specifier = ">=0.13.0" },
     { name = "vulture", specifier = ">=2.14" },
 ]
 

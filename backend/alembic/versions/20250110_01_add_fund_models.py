@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Iterable, Tuple
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any
 
 import sqlalchemy as sa
-from alembic import op
 from backend.src.models.enums import USJurisdiction
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20250110_01_add_fund_models"
@@ -40,14 +42,12 @@ def _insert_existing_funds(connection: sa.engine.Connection) -> None:
         sa.Column("created_at", sa.DateTime()),
     )
 
-    rows: Iterable[Tuple[Any, ...]] = connection.execute(
+    rows: Iterable[tuple[Any, ...]] = connection.execute(
         sa.select(
-            sa.distinct(
-                distributions.c.fund_code,
-                distributions.c.period_quarter,
-                distributions.c.period_year,
-            )
-        )
+            distributions.c.fund_code,
+            distributions.c.period_quarter,
+            distributions.c.period_year,
+        ).distinct()
     )
 
     seen = set()
@@ -63,7 +63,7 @@ def _insert_existing_funds(connection: sa.engine.Connection) -> None:
                 fund_code=fund_code,
                 period_quarter=quarter,
                 period_year=year,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(UTC),
             )
         )
 
@@ -74,7 +74,9 @@ def upgrade() -> None:
         sa.Column("fund_code", sa.String(length=50), primary_key=True),
         sa.Column("period_quarter", sa.String(length=2), nullable=False),
         sa.Column("period_year", sa.Integer(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
     )
     op.create_index(
         "idx_fund_period_unique",
@@ -86,13 +88,35 @@ def upgrade() -> None:
     op.create_table(
         FUND_SOURCE_TABLE,
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("fund_code", sa.String(length=50), sa.ForeignKey("funds.fund_code"), nullable=False),
+        sa.Column(
+            "fund_code",
+            sa.String(length=50),
+            sa.ForeignKey("funds.fund_code"),
+            nullable=False,
+        ),
         sa.Column("company_name", sa.String(length=255), nullable=False),
-        sa.Column("state_jurisdiction", sa.Enum(USJurisdiction, name="usjurisdiction"), nullable=False),
-        sa.Column("fund_share_percentage", sa.Numeric(precision=6, scale=4), nullable=False),
-        sa.Column("total_distribution_amount", sa.Numeric(precision=12, scale=2), nullable=False),
-        sa.Column("session_id", sa.String(length=36), sa.ForeignKey("user_sessions.session_id"), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "state_jurisdiction",
+            sa.Enum(USJurisdiction, name="usjurisdiction"),
+            nullable=False,
+        ),
+        sa.Column(
+            "fund_share_percentage", sa.Numeric(precision=6, scale=4), nullable=False
+        ),
+        sa.Column(
+            "total_distribution_amount",
+            sa.Numeric(precision=12, scale=2),
+            nullable=False,
+        ),
+        sa.Column(
+            "session_id",
+            sa.String(length=36),
+            sa.ForeignKey("user_sessions.session_id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
     )
     op.create_index(
         "idx_fund_source_unique",
@@ -108,19 +132,39 @@ def upgrade() -> None:
 
     op.create_table(
         INVESTOR_FUND_TABLE,
-        sa.Column("investor_id", sa.Integer(), sa.ForeignKey("investors.id"), primary_key=True),
-        sa.Column("fund_code", sa.String(length=50), sa.ForeignKey("funds.fund_code"), primary_key=True),
-        sa.Column("commitment_percentage", sa.Numeric(precision=6, scale=4), nullable=False),
+        sa.Column(
+            "investor_id", sa.Integer(), sa.ForeignKey("investors.id"), primary_key=True
+        ),
+        sa.Column(
+            "fund_code",
+            sa.String(length=50),
+            sa.ForeignKey("funds.fund_code"),
+            primary_key=True,
+        ),
+        sa.Column(
+            "commitment_percentage", sa.Numeric(precision=6, scale=4), nullable=False
+        ),
         sa.Column("effective_date", sa.DateTime(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
     )
     op.create_index("idx_commitment_lookup", INVESTOR_FUND_TABLE, ["fund_code"])
 
     connection = op.get_bind()
     _insert_existing_funds(connection)
 
+    # Check if index exists before trying to drop it
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    existing_indexes = [
+        idx["name"] for idx in inspector.get_indexes(DISTRIBUTIONS_TABLE)
+    ]
+
     with op.batch_alter_table(DISTRIBUTIONS_TABLE) as batch_op:
-        batch_op.drop_index("idx_distribution_unique")
+        # Drop index only if it exists (older databases may not have it)
+        if "idx_distribution_unique" in existing_indexes:
+            batch_op.drop_index("idx_distribution_unique")
         batch_op.create_foreign_key(
             "fk_distributions_fund_code",
             FUNDS_TABLE,
@@ -140,8 +184,19 @@ def upgrade() -> None:
 def downgrade() -> None:
     with op.batch_alter_table(DISTRIBUTIONS_TABLE) as batch_op:
         batch_op.drop_index("idx_distribution_unique")
-        batch_op.add_column(sa.Column("period_year", sa.Integer(), nullable=False, server_default="2000"))
-        batch_op.add_column(sa.Column("period_quarter", sa.String(length=2), nullable=False, server_default="Q1"))
+        batch_op.add_column(
+            sa.Column(
+                "period_year", sa.Integer(), nullable=False, server_default="2000"
+            )
+        )
+        batch_op.add_column(
+            sa.Column(
+                "period_quarter",
+                sa.String(length=2),
+                nullable=False,
+                server_default="Q1",
+            )
+        )
         batch_op.drop_constraint("fk_distributions_fund_code", type_="foreignkey")
         batch_op.create_index(
             "idx_distribution_unique",

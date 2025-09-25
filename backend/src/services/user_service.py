@@ -1,6 +1,7 @@
 """User service for managing default user in prototype."""
 
 from sqlalchemy.orm import Session
+
 from ..models.user import User
 
 
@@ -16,17 +17,14 @@ class UserService:
     def get_or_create_default_user(self) -> User:
         """Get or create the default user for prototype."""
         # Try to find existing default user
-        user = self.db.query(User).filter(
-            User.email == self.DEFAULT_USER_EMAIL
-        ).first()
+        user = self.db.query(User).filter(User.email == self.DEFAULT_USER_EMAIL).first()
 
         if user:
             return user
 
         # Create default user
         user = User(
-            email=self.DEFAULT_USER_EMAIL,
-            company_name=self.DEFAULT_COMPANY_NAME
+            email=self.DEFAULT_USER_EMAIL, company_name=self.DEFAULT_COMPANY_NAME
         )
 
         self.db.add(user)

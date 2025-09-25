@@ -1,8 +1,8 @@
 """Investor upsert service for finding or creating investor entities."""
 
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Optional, TYPE_CHECKING
+from decimal import ROUND_HALF_UP, Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -20,10 +20,7 @@ class InvestorService:
         self.db = db
 
     def find_or_create_investor(
-        self,
-        investor_name: str,
-        investor_entity_type: str,
-        investor_tax_state: str
+        self, investor_name: str, investor_entity_type: str, investor_tax_state: str
     ) -> Investor:
         """
         Find existing investor or create new one.
@@ -37,11 +34,15 @@ class InvestorService:
             raise ValueError(f"Invalid investor entity type: {investor_entity_type}")
 
         # Try to find existing investor (case-insensitive)
-        existing_investor = self.db.query(Investor).filter(
-            Investor.investor_name.ilike(investor_name),
-            Investor.investor_entity_type == entity_type_enum,
-            Investor.investor_tax_state.ilike(investor_tax_state)
-        ).first()
+        existing_investor = (
+            self.db.query(Investor)
+            .filter(
+                Investor.investor_name.ilike(investor_name),
+                Investor.investor_entity_type == entity_type_enum,
+                Investor.investor_tax_state.ilike(investor_tax_state),
+            )
+            .first()
+        )
 
         if existing_investor:
             return existing_investor
@@ -50,14 +51,14 @@ class InvestorService:
         new_investor = Investor(
             investor_name=investor_name.strip(),
             investor_entity_type=entity_type_enum,
-            investor_tax_state=investor_tax_state.upper()
+            investor_tax_state=investor_tax_state.upper(),
         )
 
         self.db.add(new_investor)
         self.db.flush()  # Get the ID without committing
         return new_investor
 
-    def get_investor_by_id(self, investor_id: int) -> Optional[Investor]:
+    def get_investor_by_id(self, investor_id: int) -> Investor | None:
         """Get investor by ID."""
         return self.db.query(Investor).filter(Investor.id == investor_id).first()
 

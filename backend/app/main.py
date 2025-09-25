@@ -1,19 +1,20 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
-import os
 import logging
+import os
 import traceback
 
-from app.core.config import settings, ensure_directories
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.core.config import ensure_directories, settings
 from src.api import router as api_router
 from src.database.connection import init_db
 
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -36,13 +37,12 @@ async def startup_event():
     logger.info("Starting up FundFlow application...")
 
     # Import all models to ensure they're registered with SQLAlchemy
-    from src.models import User, UserSession, Investor, Distribution, ValidationError
-    from src.models import SourceFile, SaltRuleSet, WithholdingRule, CompositeRule, ValidationIssue, StateEntityTaxRuleResolved
 
     # Initialize database tables
     logger.info("Initializing database...")
     init_db()
     logger.info("Database initialized successfully")
+
 
 # Add CORS middleware
 app.add_middleware(
@@ -66,8 +66,7 @@ async def log_requests(request: Request, call_next):
         logger.error(f"Request failed: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return JSONResponse(
-            status_code=500,
-            content={"detail": f"Internal server error: {str(e)}"}
+            status_code=500, content={"detail": f"Internal server error: {str(e)}"}
         )
 
 
@@ -82,9 +81,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "detail": f"Internal server error: {str(exc)}",
-            "type": type(exc).__name__
-        }
+            "type": type(exc).__name__,
+        },
     )
+
 
 # Include API routes
 app.include_router(api_router, prefix="/api")
@@ -102,7 +102,7 @@ async def root():
     return {
         "message": f"Welcome to {settings.app_name} API",
         "version": settings.app_version,
-        "docs": "/api/docs"
+        "docs": "/api/docs",
     }
 
 
@@ -112,15 +112,11 @@ async def health_check():
     return {
         "status": "healthy",
         "version": settings.app_version,
-        "service": settings.app_name
+        "service": settings.app_name,
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.debug
-    )
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=settings.debug)

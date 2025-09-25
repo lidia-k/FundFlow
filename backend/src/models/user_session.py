@@ -3,13 +3,24 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLEnum
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum as SQLEnum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
+
 from ..database.connection import Base
 
 
 class UploadStatus(Enum):
     """Upload status enumeration."""
+
     QUEUED = "queued"
     UPLOADING = "uploading"
     PARSING = "parsing"

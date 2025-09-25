@@ -1,4 +1,4 @@
-"""Results display component with data grid for distribution results."""
+// Results display component with data grid for distribution results.
 
 import React, { useState, useMemo } from 'react';
 import { Download, Filter, Search, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
