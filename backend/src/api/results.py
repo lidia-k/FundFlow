@@ -49,6 +49,7 @@ async def get_results(
     # Format distribution data
     distribution_data = []
     for dist in distributions:
+        fund = dist.fund
         distribution_data.append({
             "id": dist.id,
             "investor_id": dist.investor_id,
@@ -56,8 +57,8 @@ async def get_results(
             "investor_entity_type": dist.investor.investor_entity_type.value,
             "investor_tax_state": dist.investor.investor_tax_state,
             "fund_code": dist.fund_code,
-            "period_quarter": dist.period_quarter,
-            "period_year": dist.period_year,
+            "period_quarter": fund.period_quarter if fund else None,
+            "period_year": fund.period_year if fund else None,
             "jurisdiction": dist.jurisdiction.value,
             "amount": float(dist.amount),
             "composite_exemption": dist.composite_exemption,
@@ -93,10 +94,13 @@ async def get_results(
     if distributions:
         # Get fund info from first distribution
         first_dist = distributions[0]
+        fund = first_dist.fund
+        if not fund:
+            raise HTTPException(status_code=500, detail="Fund metadata missing for distribution")
         distribution_summary = distribution_service.calculate_total_distributions(
             first_dist.fund_code,
-            first_dist.period_quarter,
-            first_dist.period_year
+            fund.period_quarter,
+            fund.period_year
         )
         # Convert Decimal to float for JSON serialization
         distribution_summary = {k: float(v) for k, v in distribution_summary.items()}
@@ -104,8 +108,8 @@ async def get_results(
         # Get exemption summary
         exemption_summary = distribution_service.get_exemption_summary(
             first_dist.fund_code,
-            first_dist.period_quarter,
-            first_dist.period_year
+            fund.period_quarter,
+            fund.period_year
         )
         distribution_summary["exemption_summary"] = exemption_summary
 
@@ -155,6 +159,7 @@ async def get_results_preview(
     preview_data = []
     results_mode = mode == "results"
     for dist in limited_distributions:
+        fund = dist.fund
         preview_entry = {
             "investor_name": dist.investor.investor_name,
             "entity_type": dist.investor.investor_entity_type.value,
@@ -162,7 +167,7 @@ async def get_results_preview(
             "jurisdiction": dist.jurisdiction.value,
             "amount": float(dist.amount),
             "fund_code": dist.fund_code,
-            "period": f"{dist.period_quarter} {dist.period_year}"
+            "period": f"{fund.period_quarter} {fund.period_year}" if fund else None
         }
 
         if results_mode:

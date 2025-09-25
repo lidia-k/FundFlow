@@ -1,9 +1,10 @@
 """Distribution processing service with exemptions."""
 
 from decimal import Decimal
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
+from typing import List, Dict, Any
+from sqlalchemy.orm import Session, joinedload
 from ..models.distribution import Distribution
+from ..models.fund import Fund
 from ..models.enums import USJurisdiction
 from ..models.investor import Investor
 
@@ -18,9 +19,7 @@ class DistributionService:
         self,
         investor: Investor,
         session_id: str,
-        fund_code: str,
-        period_quarter: str,
-        period_year: int,
+        fund: Fund,
         parsed_row: Dict[str, Any]
     ) -> List[Distribution]:
         """
@@ -52,14 +51,13 @@ class DistributionService:
                 distribution = Distribution(
                     investor_id=investor.id,
                     session_id=session_id,
-                    fund_code=fund_code,
-                    period_quarter=period_quarter,
-                    period_year=period_year,
+                    fund_code=fund.fund_code,
                     jurisdiction=jurisdiction,
                     amount=amount,
                     composite_exemption=composite_exemption,
-                    withholding_exemption=withholding_exemption
+                    withholding_exemption=withholding_exemption,
                 )
+                distribution.fund = fund
                 distributions.append(distribution)
 
         # Add to database
@@ -70,9 +68,15 @@ class DistributionService:
 
     def get_distributions_by_session(self, session_id: str) -> List[Distribution]:
         """Get all distributions for a session."""
-        return self.db.query(Distribution).filter(
-            Distribution.session_id == session_id
-        ).all()
+        return (
+            self.db.query(Distribution)
+            .options(
+                joinedload(Distribution.investor),
+                joinedload(Distribution.fund),
+            )
+            .filter(Distribution.session_id == session_id)
+            .all()
+        )
 
 
     def get_distributions_by_fund_period(
@@ -82,11 +86,16 @@ class DistributionService:
         period_year: int
     ) -> List[Distribution]:
         """Get all distributions for a specific fund and period."""
-        return self.db.query(Distribution).filter(
-            Distribution.fund_code == fund_code,
-            Distribution.period_quarter == period_quarter,
-            Distribution.period_year == period_year
-        ).all()
+        return (
+            self.db.query(Distribution)
+            .join(Distribution.fund)
+            .filter(
+                Fund.fund_code == fund_code,
+                Fund.period_quarter == period_quarter,
+                Fund.period_year == period_year,
+            )
+            .all()
+        )
 
     def calculate_total_distributions(
         self,

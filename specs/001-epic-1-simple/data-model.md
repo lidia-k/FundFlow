@@ -108,8 +108,55 @@ class Investor:
 
 ---
 
+### Fund Entity
+**Purpose**: Centralizes period metadata for a fund upload and anchors associated data
+**Storage**: `funds` table
+
+```python
+class Fund:
+    fund_code: str (Primary Key, extracted from filename)
+    period_quarter: str (Q1-Q4 metadata)
+    period_year: int (4-digit year)
+    created_at: datetime (Auto-generated)
+```
+
+**Validation Rules**:
+- `fund_code`: Alphanumeric, max 50 characters
+- `period_quarter`: Must match Q1, Q2, Q3, or Q4
+- `period_year`: Must be ≥ 2020
+
+**Relationships**:
+- One-to-many with `FundSourceData`
+- One-to-many with `InvestorFundCommitment`
+- One-to-many with `Distribution`
+
+---
+
+### InvestorFundCommitment Entity
+**Purpose**: Captures an investor’s commitment percentage to a fund (association object)
+**Storage**: `investor_fund_commitments` table
+
+```python
+class InvestorFundCommitment:
+    investor_id: int (Primary Key, FK -> investors.id)
+    fund_code: str (Primary Key, FK -> funds.fund_code)
+    commitment_percentage: decimal.Decimal (0.0000 – 100.0000)
+    effective_date: datetime (commitment start)
+    created_at: datetime (Auto-generated)
+```
+
+**Validation Rules**:
+- `commitment_percentage`: Must be between 0 and 100 inclusive, stored to four decimal places
+- (`investor_id`, `fund_code`) pair must be unique
+
+**Relationships**:
+- Many-to-one with `Investor`
+- Many-to-one with `Fund`
+
+---
+
 ### Distribution Entity
-**Purpose**: Represents quarterly distribution amounts by jurisdiction for specific periods
+**Purpose**: Represents calculated distribution amounts by jurisdiction for a fund period
 **Storage**: `distributions` table
 
 ```python
@@ -117,24 +164,21 @@ class Distribution:
     id: int (Primary Key)
     investor_id: int (Foreign Key -> investors.id)
     session_id: str (Foreign Key -> user_sessions.session_id, for audit trail)
-    fund_code: str (Extracted from filename)
-    period_quarter: str (Q1-Q4, extracted from filename)
-    period_year: int (Extracted from filename)
+    fund_code: str (Foreign Key -> funds.fund_code)
     jurisdiction: JurisdictionType (Enum: TX_NM or CO)
     amount: decimal.Decimal (Required, >= 0)
     composite_exemption: bool (Default False, from Excel exemption columns)
     withholding_exemption: bool (Default False, from Excel exemption columns)
+    composite_tax_amount: decimal.Decimal | None
+    withholding_tax_amount: decimal.Decimal | None
     created_at: datetime (Auto-generated)
 ```
 
 **Validation Rules**:
-- amount: Must be >= 0, precision to 2 decimal places
+- amount: Must be ≥ 0, precision to 2 decimal places
 - jurisdiction: Must be TX_NM or CO
-- fund_code: Alphanumeric, max 50 characters
-- period_quarter: Must match Q1, Q2, Q3, or Q4
-- period_year: Must be 4-digit year >= 2020
-- composite_exemption: Boolean, derived from Excel values ("Exemption" → True, all else → False)
-- withholding_exemption: Boolean, derived from Excel values ("Exemption" → True, all else → False)
+- fund_code: Must reference an existing fund
+- composite_exemption / withholding_exemption: Boolean flags parsed from Excel
 - At least one distribution per investor must have amount > 0
 
 **JurisdictionType Enum**:
@@ -142,16 +186,16 @@ class Distribution:
 - CO (Colorado)
 
 **Business Rules**:
-- Each investor can have 0-2 distribution records per period (one per jurisdiction)
-- Total distribution amount across all jurisdictions must be > 0 per investor per period
-- Amounts are stored with 2 decimal precision for currency
-- Exemption flags are jurisdiction-specific: CO exemptions apply to CO jurisdiction, NM exemptions apply to TX_NM jurisdiction
-- Exemption mapping: "Exemption" text → True, empty/"-"/other → False
-- Unique constraint on (investor_id, fund_code, period_quarter, period_year, jurisdiction)
+- Each investor can have up to one distribution per jurisdiction per fund period
+- Total distribution amount across all jurisdictions must be > 0 per investor per fund
+- Amounts stored with currency precision
+- Exemption flags remain jurisdiction-specific (CO vs. TX_NM)
+- Unique constraint on (investor_id, fund_code, jurisdiction)
 
 **Relationships**:
-- Many-to-one with Investor
-- Many-to-one with UserSession (for audit trail)
+- Many-to-one with `Investor`
+- Many-to-one with `UserSession` (audit trail)
+- Many-to-one with `Fund` (period metadata)
 
 ---
 
@@ -207,8 +251,8 @@ class ValidationError:
 User (1) ─── (N) UserSession ─── (N) ValidationError
                      │
                      └─── (N) Distribution ─── (N) Investor (1)
-                                    │
-                                    └─── (1) Investor (persistent)
+                                     │
+                                     └─── (N) InvestorFundCommitment (N) ─── (1) Fund ─── (N) FundSourceData
 ```
 
 **Key Changes**:

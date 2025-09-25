@@ -1,8 +1,16 @@
 """Investor upsert service for finding or creating investor entities."""
 
-from typing import Optional
+from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
+from typing import Optional, TYPE_CHECKING
+
 from sqlalchemy.orm import Session
+
 from ..models.investor import Investor, InvestorEntityType
+from ..models.investor_fund_commitment import InvestorFundCommitment
+
+if TYPE_CHECKING:
+    from ..models.fund import Fund
 
 
 class InvestorService:
@@ -53,4 +61,41 @@ class InvestorService:
         """Get investor by ID."""
         return self.db.query(Investor).filter(Investor.id == investor_id).first()
 
+    def upsert_commitment(
+        self,
+        investor: Investor,
+        fund: "Fund",
+        commitment_percentage: Decimal | float | int,
+    ) -> InvestorFundCommitment:
+        """Create or update investor commitment percentage for a fund."""
+        existing = (
+            self.db.query(InvestorFundCommitment)
+            .filter(
+                InvestorFundCommitment.investor_id == investor.id,
+                InvestorFundCommitment.fund_code == fund.fund_code,
+            )
+            .first()
+        )
 
+        commitment_decimal = Decimal(str(commitment_percentage)).quantize(
+            Decimal("0.0001"), rounding=ROUND_HALF_UP
+        )
+
+        if commitment_decimal < Decimal("0") or commitment_decimal > Decimal("100"):
+            raise ValueError("Commitment percentage must be between 0 and 100")
+
+        if existing:
+            existing.commitment_percentage = commitment_decimal
+            if existing.effective_date is None:
+                existing.effective_date = datetime.utcnow()
+            return existing
+
+        commitment = InvestorFundCommitment(
+            investor_id=investor.id,
+            fund_code=fund.fund_code,
+            commitment_percentage=commitment_decimal,
+            effective_date=datetime.utcnow(),
+        )
+        commitment.fund = fund
+        self.db.add(commitment)
+        return commitment

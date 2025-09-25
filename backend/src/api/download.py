@@ -49,12 +49,13 @@ async def download_results(
     # Prepare data for export
     export_data = []
     for dist in distributions:
+        fund = dist.fund
         export_data.append({
             "Investor Name": dist.investor.investor_name,
             "Entity Type": dist.investor.investor_entity_type.value,
             "Tax State": dist.investor.investor_tax_state,
             "Fund Code": dist.fund_code,
-            "Period": f"{dist.period_quarter} {dist.period_year}",
+            "Period": f"{fund.period_quarter} {fund.period_year}" if fund else "",
             "Jurisdiction": dist.jurisdiction.value,
             "Distribution Amount": float(dist.amount),
             "Composite Exemption": "Yes" if dist.composite_exemption else "No",
