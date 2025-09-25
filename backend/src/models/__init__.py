@@ -5,6 +5,9 @@ from .user_session import UserSession, UploadStatus
 from .investor import Investor
 from .enums import InvestorEntityType, USJurisdiction, RuleSetStatus, Quarter, IssueSeverity
 from .distribution import Distribution
+from .fund import Fund
+from .fund_source_data import FundSourceData
+from .investor_fund_commitment import InvestorFundCommitment
 from .validation_error import ValidationError, ErrorSeverity
 
 # SALT models
@@ -23,6 +26,9 @@ __all__ = [
     "InvestorEntityType",
     "USJurisdiction",
     "Distribution",
+    "Fund",
+    "FundSourceData",
+    "InvestorFundCommitment",
     "ValidationError",
     "ErrorSeverity",
     # SALT enums

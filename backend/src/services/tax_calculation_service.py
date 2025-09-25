@@ -44,7 +44,10 @@ class TaxCalculationService:
         """Apply withholding/composite tax calculations for a session."""
         distributions = (
             self.db.query(Distribution)
-            .options(joinedload(Distribution.investor))
+            .options(
+                joinedload(Distribution.investor),
+                joinedload(Distribution.fund),
+            )
             .filter(Distribution.session_id == session_id)
             .all()
         )
@@ -52,9 +55,16 @@ class TaxCalculationService:
         if not distributions:
             return
 
-        rule_context = self.get_rule_context()
-        if not rule_context:
+        active_rule_set = self._get_active_rule_set()
+        if not active_rule_set:
             # Ensure stale values are cleared when no rules are active
+            for distribution in distributions:
+                distribution.composite_tax_amount = None
+                distribution.withholding_tax_amount = None
+            return
+
+        rule_context = self._build_rule_context(active_rule_set)
+        if rule_context.is_empty():
             for distribution in distributions:
                 distribution.composite_tax_amount = None
                 distribution.withholding_tax_amount = None
@@ -71,17 +81,6 @@ class TaxCalculationService:
             .order_by(SaltRuleSet.effective_date.desc())
             .first()
         )
-
-    def get_rule_context(self) -> Optional[RuleContext]:
-        """Return the active rule context if available."""
-        active_rule_set = self._get_active_rule_set()
-        if not active_rule_set:
-            return None
-
-        context = self._build_rule_context(active_rule_set)
-        if context.is_empty():
-            return None
-        return context
 
     def _build_rule_context(self, rule_set: SaltRuleSet) -> RuleContext:
         """Load withholding and composite rules for the active rule set."""
@@ -108,6 +107,17 @@ class TaxCalculationService:
             composite_rules=composite_lookup,
             withholding_rules=withholding_lookup,
         )
+
+    def get_rule_context(self) -> Optional[RuleContext]:
+        """Expose active rule context for reporting endpoints."""
+        active_rule_set = self._get_active_rule_set()
+        if not active_rule_set:
+            return None
+
+        rule_context = self._build_rule_context(active_rule_set)
+        if rule_context.is_empty():
+            return None
+        return rule_context
 
     def _apply_tax_logic(self, distribution: Distribution, context: RuleContext) -> None:
         """Apply exemption, composite, and withholding tax logic to a distribution."""

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 from src.models.composite_rule import CompositeRule
 from src.models.distribution import Distribution
+from src.models.fund import Fund
 from src.models.enums import InvestorEntityType, USJurisdiction
 from src.models.investor import Investor
 from src.models.withholding_rule import WithholdingRule
@@ -28,18 +29,22 @@ def make_distribution(
     composite_exemption: bool = False,
     withholding_exemption: bool = False,
 ) -> Distribution:
+    fund = Fund(
+        fund_code="FUND",
+        period_quarter="Q1",
+        period_year=2025,
+    )
     distribution = Distribution(
         investor_id=investor.id,
         session_id="session-123",
         fund_code="FUND",
-        period_quarter="Q1",
-        period_year=2025,
         jurisdiction=jurisdiction,
         amount=amount,
         composite_exemption=composite_exemption,
         withholding_exemption=withholding_exemption,
     )
     distribution.investor = investor
+    distribution.fund = fund
     return distribution
 
 
