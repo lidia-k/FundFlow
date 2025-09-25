@@ -12,6 +12,8 @@ from ..services.session_service import SessionService
 from ..services.excel_service import ExcelService
 from ..services.investor_service import InvestorService
 from ..services.distribution_service import DistributionService
+from ..services.fund_service import FundService
+from ..services.tax_calculation_service import TaxCalculationService
 from ..models.user_session import UploadStatus
 
 router = APIRouter()
@@ -47,7 +49,9 @@ async def upload_file(
         session_service = SessionService(db)
         excel_service = ExcelService()
         investor_service = InvestorService(db)
+        fund_service = FundService(db)
         distribution_service = DistributionService(db)
+        tax_calculation_service = TaxCalculationService(db)
 
         # Save uploaded file temporarily for validation
         file_extension = Path(file.filename).suffix
@@ -112,6 +116,15 @@ async def upload_file(
 
             # Process valid data
             distributions_created = 0
+            try:
+                fund = fund_service.get_or_create_fund(
+                    parsing_result.fund_info['fund_code'],
+                    parsing_result.fund_info['period_quarter'],
+                    int(parsing_result.fund_info['period_year']),
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+
             for row_data in parsing_result.data:
                 # Find or create investor
                 investor = investor_service.find_or_create_investor(
@@ -120,16 +133,26 @@ async def upload_file(
                     row_data['investor_tax_state']
                 )
 
+                commitment_percentage = row_data.get('commitment_percentage')
+                if commitment_percentage is not None:
+                    investor_service.upsert_commitment(
+                        investor=investor,
+                        fund=fund,
+                        commitment_percentage=commitment_percentage,
+                    )
+
                 # Create distributions
                 distributions = distribution_service.create_distributions_for_investor(
                     investor=investor,
                     session_id=session.session_id,
-                    fund_code=parsing_result.fund_info['fund_code'],
-                    period_quarter=parsing_result.fund_info['period_quarter'],
-                    period_year=int(parsing_result.fund_info['period_year']),
+                    fund=fund,
                     parsed_row=row_data
                 )
                 distributions_created += len(distributions)
+
+            # Apply SALT tax calculations before finalizing
+            db.flush()
+            tax_calculation_service.apply_for_session(session.session_id)
 
             # Commit all changes
             db.commit()

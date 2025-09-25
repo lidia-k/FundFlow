@@ -1,19 +1,21 @@
 # Recent Documentation Updates
 
-## API Documentation Corrections (Epic 2A)
-- Updated CLAUDE.md API reference section to match actual implementation
-- Corrected endpoint paths from `/api/calculations/` to `/api/results/` 
-- Updated data models to reflect current implementation (UserSession, Investor, Distribution, ValidationError)
-- Updated database schema documentation with correct table names and structure
-- Fixed file paths to match backend/src/ directory structure
+## Documentation Refresh for Epic 2A/2B Completion
 
-## Task File Reorganization
-- Removed old `prompts/development/tasks.md` 
-- Added Epic 2A SALT task specifications in `specs/002-epic-2a-salt/tasks.md`
-- Added new `prompts/development/implement_tasks.md` for development workflow
+### Changes Made
+- **README.md**: Complete overhaul to reflect production-ready status
+- **CLAUDE.md**: Updated project status and implementation progress
 
-## Key Changes Made
-- API endpoints now correctly documented as implemented
-- Data models match actual Pydantic models in codebase
-- Database schema reflects current SQLAlchemy models
-- Development workflow paths updated to match project structure
+### Key Updates
+- Version updated from v1.2.0 (Prototype) to v1.2.1 (Epic 2A/2B Complete)
+- Added 13 new API endpoints for SALT rule management
+- Updated tech stack to include SQLAlchemy ORM, Shadcn UI, tax engine
+- Enhanced project structure with accurate file counts (26 Python files, 18+ React components)
+- Status changed from prototype to production-ready tax processing system
+- Added comprehensive audit reporting and v1.3 format template capabilities
+
+### Documentation Impact
+- README.md now accurately represents the sophisticated tax processing platform
+- CLAUDE.md reflects Epic 2A (SALT rules) and Epic 2B (tax calculations) completion
+- Both files provide clear technical reference for API consumers and developers
+- Updated scope from prototype limitations to production capabilities

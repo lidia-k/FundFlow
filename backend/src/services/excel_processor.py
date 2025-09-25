@@ -192,85 +192,6 @@ class ExcelProcessor:
 
         return issues
 
-    def validate_data_types(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
-        """Validate data types in sheet columns."""
-        issues = []
-
-        # Define expected data types per sheet
-        if sheet_name == "Withholding":
-            numeric_columns = ["TaxRate", "IncomeThreshold", "TaxThreshold"]
-            string_columns = ["State", "EntityType"]
-        elif sheet_name == "Composite":
-            numeric_columns = ["TaxRate", "IncomeThreshold"]
-            string_columns = ["State", "EntityType"]
-            boolean_columns = ["MandatoryFiling"]
-        else:
-            return issues
-
-        # Validate numeric columns
-        for col in numeric_columns:
-            if col not in df.columns:
-                continue
-
-            for idx, value in df[col].items():
-                if pd.isna(value):
-                    continue
-
-                try:
-                    float(value)
-                except (ValueError, TypeError):
-                    issues.append(ValidationIssue(
-                        rule_set_id=self.rule_set_id,
-                        sheet_name=sheet_name,
-                        row_number=idx + 2,  # +2 for 1-indexed and header row
-                        column_name=col,
-                        error_code="INVALID_DATA_TYPE",
-                        severity=IssueSeverity.ERROR,
-                        message=f"Invalid numeric value '{value}' in column '{col}'",
-                        field_value=str(value)
-                    ))
-
-        # Validate string columns
-        for col in string_columns:
-            if col not in df.columns:
-                continue
-
-            for idx, value in df[col].items():
-                if pd.isna(value) or value == "":
-                    issues.append(ValidationIssue(
-                        rule_set_id=self.rule_set_id,
-                        sheet_name=sheet_name,
-                        row_number=idx + 2,
-                        column_name=col,
-                        error_code="EMPTY_REQUIRED_FIELD",
-                        severity=IssueSeverity.ERROR,
-                        message=f"Required field '{col}' is empty",
-                        field_value=str(value) if not pd.isna(value) else None
-                    ))
-
-        # Validate boolean columns (for Composite sheet)
-        if sheet_name == "Composite":
-            for col in boolean_columns:
-                if col not in df.columns:
-                    continue
-
-                for idx, value in df[col].items():
-                    if pd.isna(value):
-                        continue
-
-                    if not isinstance(value, bool) and str(value).lower() not in ['true', 'false', '1', '0', 'yes', 'no']:
-                        issues.append(ValidationIssue(
-                            rule_set_id=self.rule_set_id,
-                            sheet_name=sheet_name,
-                            row_number=idx + 2,
-                            column_name=col,
-                            error_code="INVALID_DATA_TYPE",
-                            severity=IssueSeverity.ERROR,
-                            message=f"Invalid boolean value '{value}' in column '{col}'",
-                            field_value=str(value)
-                        ))
-
-        return issues
 
     def validate_state_codes(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
         """Validate state abbreviations against USJurisdiction enum."""
@@ -299,33 +220,6 @@ class ExcelProcessor:
         return issues
 
 
-    def validate_duplicate_rules(self, sheet_name: str, df: pd.DataFrame) -> List[ValidationIssue]:
-        """Validate for duplicate state/entity combinations."""
-        issues = []
-
-        if "State" not in df.columns or "EntityType" not in df.columns:
-            return issues
-
-        # Create composite key for state+entity
-        df_clean = df.dropna(subset=["State", "EntityType"])
-        df_clean['composite_key'] = df_clean['State'].astype(str) + '+' + df_clean['EntityType'].astype(str)
-
-        # Find duplicates
-        duplicates = df_clean[df_clean.duplicated(subset=['composite_key'], keep=False)]
-
-        for idx, row in duplicates.iterrows():
-            issues.append(ValidationIssue(
-                rule_set_id=self.rule_set_id,
-                sheet_name=sheet_name,
-                row_number=idx + 2,
-                column_name="State+EntityType",
-                error_code="DUPLICATE_RULE",
-                severity=IssueSeverity.ERROR,
-                message=f"Duplicate rule for State '{row['State']}' and EntityType '{row['EntityType']}'",
-                field_value=row['composite_key']
-            ))
-
-        return issues
 
     def convert_row_to_withholding_rules(self, row: pd.Series, rule_set_id: str, df: pd.DataFrame) -> List[WithholdingRule]:
         """Convert DataFrame row to multiple WithholdingRule objects (one per entity type)."""

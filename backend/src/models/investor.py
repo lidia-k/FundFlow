@@ -21,6 +21,12 @@ class Investor(Base):
 
     # Relationships
     distributions = relationship("Distribution", back_populates="investor")
+    fund_commitments = relationship("InvestorFundCommitment", back_populates="investor")
+
+    @property
+    def funds(self):
+        """Return funds this investor has commitments in."""
+        return [commitment.fund for commitment in self.fund_commitments]
 
     def __repr__(self) -> str:
         return f"<Investor(id={self.id}, name='{self.investor_name}', type='{self.investor_entity_type.value}', state='{self.investor_tax_state}')>"

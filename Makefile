@@ -28,14 +28,18 @@ build: ## Build the application
 	npm run build
 
 # Testing
-test: ## Run all tests
+test: ## Run all tests in Docker containers
+	docker-compose exec -T backend python -m pytest
+	docker-compose exec -T frontend npm run test -- --run
+
+test-backend: ## Run backend tests only in Docker
+	docker-compose exec -T backend python -m pytest
+
+test-frontend: ## Run frontend tests only in Docker
+	docker-compose exec -T frontend npm run test -- --run
+
+test-local: ## Run all tests locally (requires local setup)
 	npm run test
-
-test-backend: ## Run backend tests only
-	npm run test:backend
-
-test-frontend: ## Run frontend tests only
-	npm run test:frontend
 
 # Linting and formatting
 lint: ## Run linters

@@ -16,11 +16,6 @@ class ValidationService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_validation_issues(self, rule_set: SaltRuleSet) -> List[ValidationIssue]:
-        """Get all validation issues for a rule set."""
-        return (self.db.query(ValidationIssue)
-                .filter(ValidationIssue.rule_set_id == rule_set.id)
-                .all())
 
     def get_errors_by_session(self, session_id: str) -> List[Dict]:
         """Get validation errors for a session (used by results API)."""

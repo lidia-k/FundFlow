@@ -35,13 +35,14 @@ class TestInvestorEntityType:
             InvestorEntityType.JOINT_TENANCY_TENANCY_IN_COMMON: "Individual",
             InvestorEntityType.GOVERNMENT_BENEFIT_PLAN: "Exempt Org",
             InvestorEntityType.IRA_KEOGH: "IRA",
+            InvestorEntityType.IRA: "IRA",
             InvestorEntityType.EXEMPT_ORGANIZATION_BENEFIT: "Exempt Org",
             InvestorEntityType.LLP: "Partnership",
             InvestorEntityType.BENEFIT_PLAN_INVESTOR_ERISA_TITLE_I: "Exempt Org",
             InvestorEntityType.GRANTOR_TRUST: "Individual",
             InvestorEntityType.LLC_TAXED_AS_CORPORATION: "Corporation",
             InvestorEntityType.LLC_TAXED_AS_PARTNERSHIP_ALT: "Partnership",
-            InvestorEntityType.ESTATE: "Partnership",
+            InvestorEntityType.ESTATE: "Estate",
             InvestorEntityType.BENEFIT_PLAN_INVESTOR_PLAN_ASSETS: "Exempt Org",
         }
 
@@ -83,7 +84,7 @@ class TestInvestorEntityType:
         # Expected unique codings based on the table
         expected_unique = {
             "Corporation", "Partnership", "Exempt Org", "Individual",
-            "Trust", "S Corporation", "IRA"
+            "Trust", "S Corporation", "IRA", "Estate"
         }
 
         assert unique_codings == expected_unique
@@ -113,7 +114,7 @@ class TestInvestorEntityType:
 
         # Test iteration
         entity_types = list(InvestorEntityType)
-        assert len(entity_types) == 19  # Total number of entity types
+        assert len(entity_types) == 20  # Total number of entity types
 
 
 class TestUSJurisdiction:
