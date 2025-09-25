@@ -173,10 +173,13 @@ class TestFundSourceDataService:
         ]
 
         validation_errors = self.service.validate_fund_source_data_constraints(
-            "FUND_A", parsed_data
+            "FUND_A", parsed_data, session_id="session-123"
         )
 
         assert len(validation_errors) == 0
+        # Ensure query filtered by fund and session
+        filter_calls = mock_query.filter.call_args_list
+        assert any("fund_source_data.session_id" in str(args[0]) for args, _ in filter_calls)
 
     def test_validate_fund_source_data_constraints_existing_conflict(self):
         """Test constraint validation with existing record conflict."""
@@ -201,7 +204,7 @@ class TestFundSourceDataService:
         ]
 
         validation_errors = self.service.validate_fund_source_data_constraints(
-            "FUND_A", parsed_data
+            "FUND_A", parsed_data, session_id="session-123"
         )
 
         assert len(validation_errors) == 1
@@ -227,7 +230,7 @@ class TestFundSourceDataService:
         ]
 
         validation_errors = self.service.validate_fund_source_data_constraints(
-            "FUND_A", parsed_data
+            "FUND_A", parsed_data, session_id="session-123"
         )
 
         assert len(validation_errors) == 1
@@ -261,7 +264,7 @@ class TestFundSourceDataService:
         ]
 
         validation_errors = self.service.validate_fund_source_data_constraints(
-            "FUND_A", parsed_data
+            "FUND_A", parsed_data, session_id="session-123"
         )
 
         assert len(validation_errors) == 2

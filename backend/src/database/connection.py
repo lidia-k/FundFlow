@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 def _ensure_distribution_tax_columns(engine, database_url: str) -> None:
     """Ensure new tax columns exist on the distributions table for legacy databases."""
-    with engine.connect() as connection:
+    with engine.begin() as connection:
         if "sqlite" in database_url:
             existing_columns = {
                 row[1]
@@ -41,7 +41,21 @@ def _ensure_distribution_tax_columns(engine, database_url: str) -> None:
                 )
             )
 
-        connection.commit()
+        # Non-SQLite branches run within same transaction
+
+
+def _ensure_unique_indexes(engine, database_url: str) -> None:
+    """Ensure critical unique indexes include session scoping."""
+    statements = [
+        "DROP INDEX IF EXISTS idx_distribution_unique",
+        "DROP INDEX IF EXISTS idx_fund_source_unique",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_distribution_unique ON distributions (investor_id, fund_code, jurisdiction, session_id)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_fund_source_unique ON fund_source_data (fund_code, company_name, state_jurisdiction, session_id)",
+    ]
+
+    with engine.begin() as connection:
+        for stmt in statements:
+            connection.execute(text(stmt))
 
 
 # Database URL
@@ -74,3 +88,4 @@ def init_db():
     """Initialize database tables."""
     Base.metadata.create_all(bind=engine)
     _ensure_distribution_tax_columns(engine, DATABASE_URL)
+    _ensure_unique_indexes(engine, DATABASE_URL)

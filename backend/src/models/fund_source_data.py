@@ -43,6 +43,7 @@ class FundSourceData(Base):
             fund_code,
             company_name,
             state_jurisdiction,
+            session_id,
             unique=True,
         ),
         Index("idx_fund_source_lookup", fund_code, state_jurisdiction),

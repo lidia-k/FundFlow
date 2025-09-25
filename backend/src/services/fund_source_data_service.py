@@ -57,14 +57,25 @@ class FundSourceDataService:
         )
 
     def validate_fund_source_data_constraints(
-        self, fund_code: str, parsed_data: list[dict[str, Any]]
+        self,
+        fund_code: str,
+        parsed_data: list[dict[str, Any]],
+        session_id: str | None = None,
     ) -> list[str]:
         """Validate business rules for fund source data."""
         validation_errors = []
 
-        # Check for duplicate company/state combinations within the same fund
+        # Check for duplicate company/state combinations within the same fund/session
         existing_combinations = set()
-        existing_records = self.get_fund_source_data_by_fund(fund_code)
+        if session_id:
+            existing_records = (
+                self.db.query(FundSourceData)
+                .filter(FundSourceData.fund_code == fund_code)
+                .filter(FundSourceData.session_id == session_id)
+                .all()
+            )
+        else:
+            existing_records = []
 
         for record in existing_records:
             existing_combinations.add(

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { api } from '../api/client';
-import type { ResultsPreviewResponse, ResultsPreviewRow } from '../types/api';
+import type { ResultsPreviewResponse, ResultsPreviewRow, FundSourceDataResponse, FundSourceDataRow } from '../types/api';
 
 interface FilePreviewModalProps {
   isOpen: boolean;
@@ -23,9 +23,11 @@ interface GroupedInvestorData {
 }
 
 export default function FilePreviewModal({ isOpen, onClose, sessionId, filename }: FilePreviewModalProps) {
+  const [activeTab, setActiveTab] = useState<'distributions' | 'fund-source'>('distributions');
   const [previewData, setPreviewData] = useState<ResultsPreviewResponse | null>(null);
   const [groupedData, setGroupedData] = useState<GroupedInvestorData[]>([]);
   const [jurisdictions, setJurisdictions] = useState<string[]>([]);
+  const [fundSourceData, setFundSourceData] = useState<FundSourceDataResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,12 +41,18 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getResultsPreview(sessionId, 50); // Show first 50 rows
-      setPreviewData(data);
+      // Load both preview data and fund source data in parallel
+      const [previewResponse, fundSourceResponse] = await Promise.all([
+        api.getResultsPreview(sessionId, 50), // Show first 50 rows
+        api.getFundSourceData(sessionId)
+      ]);
+
+      setPreviewData(previewResponse);
+      setFundSourceData(fundSourceResponse);
 
       // Transform data for grouped display
-      if (data.preview_data && data.preview_data.length > 0) {
-        const { grouped, jurisdictions } = transformDataByInvestor(data.preview_data);
+      if (previewResponse.preview_data && previewResponse.preview_data.length > 0) {
+        const { grouped, jurisdictions } = transformDataByInvestor(previewResponse.preview_data);
         setGroupedData(grouped);
         setJurisdictions(jurisdictions);
       }
@@ -73,6 +81,12 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
     return `${new Intl.NumberFormat('en-US', {
       maximumFractionDigits: 2,
     }).format(percentValue)}%`;
+  };
+
+  const formatFundSharePercentage = (value: number) => {
+    return `${new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 4,
+    }).format(value * 100)}%`;
   };
 
   const transformDataByInvestor = (data: ResultsPreviewRow[]): { grouped: GroupedInvestorData[], jurisdictions: string[] } => {
@@ -134,8 +148,34 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="flex px-6" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('distributions')}
+              className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'distributions'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Distribution Data
+            </button>
+            <button
+              onClick={() => setActiveTab('fund-source')}
+              className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'fund-source'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Fund Source Data
+            </button>
+          </nav>
+        </div>
+
         {/* Content */}
-        <div className="p-6 overflow-auto max-h-[calc(90vh-140px)]">
+        <div className="p-6 overflow-auto max-h-[calc(90vh-180px)]">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -151,11 +191,11 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                 Retry
               </button>
             </div>
-          ) : previewData ? (
+          ) : previewData && activeTab === 'distributions' ? (
             <div className="space-y-4">
               {/* Summary */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-medium text-blue-900 mb-2">Results Preview</h3>
+                <h3 className="font-medium text-blue-900 mb-2">Distribution Preview</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-blue-600 font-medium">Status:</span>
@@ -308,6 +348,73 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                   </p>
                 </div>
               )}
+            </div>
+          ) : fundSourceData && activeTab === 'fund-source' ? (
+            <div className="space-y-4">
+              {/* Fund Source Summary */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 className="font-medium text-green-900 mb-2">Fund Source Data</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-green-600 font-medium">Total Companies:</span>
+                    <span className="ml-2 text-green-900">{fundSourceData.count}</span>
+                  </div>
+                  <div>
+                    <span className="text-green-600 font-medium">Fund Code:</span>
+                    <span className="ml-2 text-green-900">{fundSourceData.fund_source_data[0]?.fund_code || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-green-600 font-medium">Total Distribution:</span>
+                    <span className="ml-2 text-green-900">
+                      {formatAmount(
+                        fundSourceData.fund_source_data.reduce((sum, item) => sum + item.total_distribution_amount, 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fund Source Table */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Company Name
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          State
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Fund Share %
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total Distribution
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {fundSourceData.fund_source_data.map((source, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {source.company_name}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 text-center">
+                            {source.state_jurisdiction}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 text-center font-medium">
+                            {formatFundSharePercentage(source.fund_share_percentage)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 text-center font-medium">
+                            {formatAmount(source.total_distribution_amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           ) : null}
         </div>

@@ -140,7 +140,9 @@ async def upload_file(
                     # Additional business rule validation for fund source data
                     validation_errors = (
                         fund_source_data_service.validate_fund_source_data_constraints(
-                            fund.fund_code, parsing_result.fund_source_data
+                            fund.fund_code,
+                            parsing_result.fund_source_data,
+                            session.session_id,
                         )
                     )
 

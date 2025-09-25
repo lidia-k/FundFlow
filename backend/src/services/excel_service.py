@@ -1,11 +1,14 @@
 """Excel file validation and parsing service."""
 
+import math
 import re
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
+from openpyxl.workbook import Workbook
 
 from ..models.enums import InvestorEntityType, USJurisdiction
 from ..models.validation_error import ErrorSeverity
@@ -87,6 +90,45 @@ class ExcelService:
         }
         self._seen_investors = set()
 
+    def _is_empty_value(self, value: Any) -> bool:
+        """Return True when a cell value is considered empty."""
+        if value is None:
+            return True
+        if isinstance(value, float) and math.isnan(value):
+            return True
+        if isinstance(value, str) and value.strip() == "":
+            return True
+        return False
+
+    def _load_sheet_rows(
+        self, workbook: Workbook, sheet_index: int
+    ) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
+        """Load a worksheet into normalized headers and row dictionaries."""
+        worksheets = workbook.worksheets
+        if sheet_index >= len(worksheets):
+            raise IndexError("Worksheet index %s is invalid" % sheet_index)
+
+        sheet = worksheets[sheet_index]
+        header_row = next(
+            sheet.iter_rows(min_row=1, max_row=1, values_only=True), None
+        )
+        if not header_row:
+            return [], []
+
+        normalized_headers = [self.normalize_header(cell) for cell in header_row]
+        rows: list[tuple[int, dict[str, Any]]] = []
+
+        for row_number, row in enumerate(
+            sheet.iter_rows(min_row=2, values_only=True), start=2
+        ):
+            row_dict: dict[str, Any] = {}
+            for idx, header in enumerate(normalized_headers):
+                value = row[idx] if idx < len(row) else None
+                row_dict[header] = value
+            rows.append((row_number, row_dict))
+
+        return normalized_headers, rows
+
     def extract_fund_info_from_filename(
         self, filename: str
     ) -> dict[str, str] | None:
@@ -128,9 +170,9 @@ class ExcelService:
         """Normalize header by trimming and collapsing whitespace."""
         return re.sub(r"\s+", " ", str(header).strip())
 
-    def detect_dynamic_columns(self, df: pd.DataFrame) -> bool:
+    def detect_dynamic_columns(self, headers: list[str]) -> bool:
         """Detect distribution, withholding exemption, and composite exemption columns by pattern."""
-        normalized_headers = [self.normalize_header(col) for col in df.columns]
+        normalized_headers = [self.normalize_header(col) for col in headers]
 
         # Reset detected columns
         self.detected_columns = {
@@ -186,12 +228,12 @@ class ExcelService:
 
         return True
 
-    def validate_headers(self, df: pd.DataFrame) -> bool:
+    def validate_headers(self, headers: list[str]) -> bool:
         """Validate that all required headers are present."""
-        normalized_headers = [self.normalize_header(col) for col in df.columns]
+        normalized_headers = [self.normalize_header(col) for col in headers]
 
         # Detect dynamic columns for distribution and exemptions
-        if not self.detect_dynamic_columns(df):
+        if not self.detect_dynamic_columns(headers):
             return False
 
         # Check required base headers (fixed headers)
@@ -222,7 +264,7 @@ class ExcelService:
         self, value: Any, column_name: str, row_num: int
     ) -> Decimal:
         """Parse numeric value with thousands separators and parentheses."""
-        if pd.isna(value) or value == "":
+        if self._is_empty_value(value):
             return Decimal("0.00")
 
         str_value = str(value).strip()
@@ -261,7 +303,7 @@ class ExcelService:
 
     def parse_exemption_value(self, value: Any) -> bool:
         """Parse exemption field value to boolean."""
-        if pd.isna(value) or value == "":
+        if self._is_empty_value(value):
             return False
 
         str_value = str(value).strip().lower()
@@ -269,7 +311,7 @@ class ExcelService:
 
     def parse_percentage_value(self, value: Any) -> Decimal | None:
         """Parse percentage value for fund source data (simple version)."""
-        if pd.isna(value) or value == "":
+        if self._is_empty_value(value):
             return None
 
         str_value = str(value).strip()
@@ -287,7 +329,7 @@ class ExcelService:
         row_num: int
     ) -> Optional[Decimal]:
         """Parse commitment percentage ensuring required format and bounds."""
-        if pd.isna(value) or str(value).strip() == "":
+        if self._is_empty_value(value) or str(value).strip() == "":
             self.errors.append(ExcelValidationError(
                 row_number=row_num,
                 column_name='Commitment Percentage',
@@ -462,9 +504,9 @@ class ExcelService:
 
         return parsed_row
 
-    def validate_fund_source_headers(self, df: pd.DataFrame) -> bool:
+    def validate_fund_source_headers(self, headers: list[str]) -> bool:
         """Validate that all required Fund Source Data headers are present."""
-        normalized_headers = [self.normalize_header(col) for col in df.columns]
+        normalized_headers = [self.normalize_header(col) for col in headers]
 
         missing_headers = []
         normalized_required = [
@@ -577,64 +619,55 @@ class ExcelService:
             "state_jurisdiction": str(row_data["State"]).strip().upper(),
             "fund_share_percentage": self.parse_percentage_value(row_data["Share (%)"]),
             "total_distribution_amount": self.parse_numeric_value(
-                row_data["Distribution Amount"], "Distribution Amount", row_num
+                row_data["Distribution"], "Distribution", row_num
             ),
             "row_number": row_num,
         }
         return parsed_row
 
     def parse_fund_source_data(
-        self, file_path: Path
+        self, workbook: Workbook
     ) -> tuple[list[dict[str, Any]], list[ExcelValidationError]]:
         """Parse Fund Source Data from second sheet."""
         fund_source_errors: list[ExcelValidationError] = []
-        fund_source_data: list[dict[str, Any]] = []
 
         try:
-            # Try to read second sheet ("Fund Source Data")
-            df = pd.read_excel(file_path, sheet_name=1)
+            headers, rows = self._load_sheet_rows(workbook, 1)
 
-            # Remove empty rows
-            df = df.dropna(subset=["Company"])
-            df = df[df["Company"].astype(str).str.strip() != ""]
+            # Remove empty company rows
+            filtered_rows = [
+                (row_num, row)
+                for row_num, row in rows
+                if not self._is_empty_value(row.get("Company"))
+            ]
 
-            # Check if we have any data
-            if len(df) == 0:
-                return (
-                    [],
-                    [],
-                )  # Empty second sheet is allowed for backward compatibility
+            if not filtered_rows:
+                return [], []
 
             # Validate headers
-            if not self.validate_fund_source_headers(df):
+            if not self.validate_fund_source_headers(headers):
                 return [], self.errors
 
-            # Normalize column names
-            df.columns = [self.normalize_header(col) for col in df.columns]
-
-            # Process each row
-            valid_fund_source_data = []
+            valid_fund_source_data: list[dict[str, Any]] = []
             company_state_combinations = set()
 
-            for idx, row in df.iterrows():
-                row_num = idx + 2  # Excel row number (1-indexed + header)
-                row_data = row.to_dict()
-
+            for row_num, row_data in filtered_rows:
                 if self.validate_fund_source_row(row_data, row_num):
                     parsed_row = self.parse_fund_source_row(row_data, row_num)
-
-                    # Check for duplicate company/state combinations
                     combo_key = (
                         parsed_row["company_name"],
                         parsed_row["state_jurisdiction"],
                     )
+
                     if combo_key in company_state_combinations:
                         fund_source_errors.append(
                             ExcelValidationError(
                                 row_number=row_num,
                                 column_name="Company/State",
                                 error_code="DUPLICATE_COMPANY_STATE",
-                                error_message=f"Duplicate Company/State combination: {combo_key[0]}/{combo_key[1]}",
+                                error_message=(
+                                    f"Duplicate Company/State combination: {combo_key[0]}/{combo_key[1]}"
+                                ),
                                 severity=ErrorSeverity.ERROR,
                             )
                         )
@@ -643,13 +676,9 @@ class ExcelService:
                         valid_fund_source_data.append(parsed_row)
 
             return valid_fund_source_data, fund_source_errors
-
-        except Exception as e:
-            # If second sheet doesn't exist or can't be read, that's okay for backward compatibility
-            if "Worksheet index 1 is invalid" in str(e) or "No sheet named" in str(e):
-                return [], []  # No second sheet is acceptable
-
-            # Other errors should be reported
+        except IndexError:
+            return [], []  # Missing sheet is acceptable for backward compatibility
+        except Exception as e:  # pragma: no cover - defensive guard
             fund_source_errors.append(
                 ExcelValidationError(
                     row_number=0,
@@ -687,49 +716,70 @@ class ExcelService:
             return ExcelParsingResult([], self.errors, {}, 0, 0)
 
         try:
-            # Read Excel file (first worksheet)
-            df = pd.read_excel(file_path, sheet_name=0)
-            # Remove rows where Investor Name is empty
-            df = df.dropna(subset=["Investor Name"])
-            df = df[df["Investor Name"].astype(str).str.strip() != ""]
+            workbook = load_workbook(filename=file_path, data_only=True)
+        except InvalidFileException as exc:
+            self.errors.append(
+                ExcelValidationError(
+                    row_number=0,
+                    column_name="file",
+                    error_code="FAILED_PARSING",
+                    error_message=f"Failed to open Excel file: {str(exc)}",
+                    severity=ErrorSeverity.ERROR,
+                )
+            )
+            return ExcelParsingResult([], self.errors, fund_info, 0, 0)
+        except Exception as exc:
+            self.errors.append(
+                ExcelValidationError(
+                    row_number=0,
+                    column_name="file",
+                    error_code="FAILED_PARSING",
+                    error_message=f"Failed to open Excel file: {str(exc)}",
+                    severity=ErrorSeverity.ERROR,
+                )
+            )
+            return ExcelParsingResult([], self.errors, fund_info, 0, 0)
+
+        try:
+            headers, rows = self._load_sheet_rows(workbook, 0)
+
+            # Remove rows where Investor Name is empty or whitespace
+            filtered_rows = [
+                (row_num, row)
+                for row_num, row in rows
+                if not self._is_empty_value(row.get("Investor Name"))
+            ]
+
+            total_rows = len(filtered_rows)
 
             # Check row limit
-            if len(df) > 50000:
+            if total_rows > 50000:
                 self.errors.append(
                     ExcelValidationError(
                         row_number=0,
                         column_name="file",
                         error_code="ROW_LIMIT_EXCEEDED",
-                        error_message=f"File has {len(df)} rows, exceeding 50,000 row limit",
+                        error_message=f"File has {total_rows} rows, exceeding 50,000 row limit",
                         severity=ErrorSeverity.ERROR,
                     )
                 )
-                return ExcelParsingResult([], self.errors, fund_info, len(df), 0)
+                return ExcelParsingResult([], self.errors, fund_info, total_rows, 0)
 
             # Validate headers
-            if not self.validate_headers(df):
-                return ExcelParsingResult([], self.errors, fund_info, len(df), 0)
+            if not self.validate_headers(headers):
+                return ExcelParsingResult([], self.errors, fund_info, total_rows, 0)
 
-            # Normalize column names
-            df.columns = [self.normalize_header(col) for col in df.columns]
-
-            # Process each row
-            valid_data = []
+            valid_data: list[dict[str, Any]] = []
             valid_row_count = 0
 
-            for idx, row in df.iterrows():
-                row_num = idx + 2  # Excel row number (1-indexed + header)
-                row_data = row.to_dict()
-
+            for row_num, row_data in filtered_rows:
                 if self.validate_row_data(row_data, row_num):
                     parsed_row = self.parse_row(row_data, row_num)
                     valid_data.append(parsed_row)
                     valid_row_count += 1
 
             # Parse Fund Source Data from second sheet (optional)
-            fund_source_data, fund_source_errors = self.parse_fund_source_data(
-                file_path
-            )
+            fund_source_data, fund_source_errors = self.parse_fund_source_data(workbook)
 
             # Combine all errors
             all_errors = self.errors + fund_source_errors
@@ -738,18 +788,30 @@ class ExcelService:
                 data=valid_data,
                 errors=all_errors,
                 fund_info=fund_info,
-                total_rows=len(df),
+                total_rows=total_rows,
                 valid_rows=valid_row_count,
                 fund_source_data=fund_source_data,
                 fund_source_errors=fund_source_errors,
             )
-
+        except IndexError:
+            self.errors.append(
+                ExcelValidationError(
+                    row_number=0,
+                    column_name="worksheet",
+                    error_code="MISSING_WORKSHEET",
+                    error_message="Primary worksheet is missing",
+                    severity=ErrorSeverity.ERROR,
+                )
+            )
+            return ExcelParsingResult([], self.errors, fund_info, 0, 0)
         except Exception as e:
-            self.errors.append(ExcelValidationError(
-                row_number=0,
-                column_name="file",
-                error_code="FAILED_PARSING",
-                error_message=f"Failed to parse Excel file: {str(e)}",
-                severity=ErrorSeverity.ERROR
-            ))
-            return ExcelParsingResult([], self.errors, fund_info or {}, 0, 0)
+            self.errors.append(
+                ExcelValidationError(
+                    row_number=0,
+                    column_name="file",
+                    error_code="FAILED_PARSING",
+                    error_message=f"Failed to parse Excel file: {str(e)}",
+                    severity=ErrorSeverity.ERROR,
+                )
+            )
+            return ExcelParsingResult([], self.errors, fund_info, 0, 0)

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from ..database.connection import get_db
 from ..models.investor_fund_commitment import InvestorFundCommitment
 from ..services.distribution_service import DistributionService
+from ..services.fund_source_data_service import FundSourceDataService
 from ..services.session_service import SessionService
 from ..services.tax_calculation_service import TaxCalculationService
 from ..services.validation_service import ValidationService
@@ -330,3 +331,42 @@ async def download_results_report(session_id: str, db: Session = Depends(get_db)
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.get("/results/{session_id}/fund-source")
+async def get_fund_source_data(session_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Get fund source data for a session.
+
+    Returns fund source breakdown by company and state jurisdiction.
+    """
+    # Initialize services
+    session_service = SessionService(db)
+    fund_source_service = FundSourceDataService(db)
+
+    # Get session
+    session = session_service.get_session_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get fund source data
+    fund_source_data = fund_source_service.get_fund_source_data_by_session(session_id)
+
+    # Format fund source data
+    source_data = []
+    for source in fund_source_data:
+        source_data.append({
+            "id": source.id,
+            "fund_code": source.fund_code,
+            "company_name": source.company_name,
+            "state_jurisdiction": source.state_jurisdiction.value,
+            "fund_share_percentage": float(source.fund_share_percentage),
+            "total_distribution_amount": float(source.total_distribution_amount),
+            "created_at": source.created_at.isoformat(),
+        })
+
+    return {
+        "session_id": session_id,
+        "fund_source_data": source_data,
+        "count": len(source_data),
+    }

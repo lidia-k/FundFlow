@@ -56,5 +56,6 @@ Index(
     Distribution.investor_id,
     Distribution.fund_code,
     Distribution.jurisdiction,
+    Distribution.session_id,
     unique=True,
 )

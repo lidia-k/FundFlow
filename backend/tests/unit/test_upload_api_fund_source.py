@@ -147,7 +147,11 @@ class TestUploadAPIFundSource:
             assert result["fund_source_data_present"] is True
 
             # Verify fund source data service was called
-            mock_fund_source_service_instance.validate_fund_source_data_constraints.assert_called_once()
+            mock_fund_source_service_instance.validate_fund_source_data_constraints.assert_called_once_with(
+                mock_fund.fund_code,
+                mock_parsing_result.fund_source_data,
+                mock_session.session_id,
+            )
             mock_fund_source_service_instance.create_fund_source_data.assert_called_once()
 
     @patch("src.api.upload.FundSourceDataService")
@@ -325,6 +329,12 @@ class TestUploadAPIFundSource:
             assert "Internal server error" in str(exc_info.value.detail)
             # The original error message should be in the details
             assert "Fund source data validation failed" in str(exc_info.value.detail)
+
+            mock_fund_source_service_instance.validate_fund_source_data_constraints.assert_called_once_with(
+                mock_fund.fund_code,
+                mock_parsing_result.fund_source_data,
+                mock_session.session_id,
+            )
 
     @patch("src.api.upload.FundSourceDataService")
     @patch("src.api.upload.ExcelService")
