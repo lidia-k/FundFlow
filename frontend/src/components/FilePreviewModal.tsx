@@ -16,6 +16,7 @@ interface GroupedInvestorData {
   tax_state: string;
   fund_code: string;
   period: string;
+  commitment_percentage: number | null;
   distributions: Record<string, number>;
   composite_exemptions: Record<string, string>;
   withholding_exemptions: Record<string, string>;
@@ -62,6 +63,18 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
     }).format(amount);
   };
 
+  const formatCommitmentPercentage = (value: number | null | undefined) => {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return '-';
+    }
+
+    const percentValue = value >= 0 && value <= 1 ? value * 100 : value;
+
+    return `${new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 2,
+    }).format(percentValue)}%`;
+  };
+
   const transformDataByInvestor = (data: ResultsPreviewRow[]): { grouped: GroupedInvestorData[], jurisdictions: string[] } => {
     const investorMap = new Map<string, GroupedInvestorData>();
     const jurisdictionSet = new Set<string>();
@@ -77,6 +90,7 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
           tax_state: row.tax_state,
           fund_code: row.fund_code,
           period: row.period,
+          commitment_percentage: row.commitment_percentage ?? null,
           distributions: {},
           composite_exemptions: {},
           withholding_exemptions: {}
@@ -87,6 +101,10 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
       investor.distributions[row.jurisdiction] = row.amount;
       investor.composite_exemptions[row.jurisdiction] = row.composite_exemption ?? '-';
       investor.withholding_exemptions[row.jurisdiction] = row.withholding_exemption ?? '-';
+
+      if (investor.commitment_percentage === null && row.commitment_percentage !== undefined && row.commitment_percentage !== null) {
+        investor.commitment_percentage = row.commitment_percentage;
+      }
     });
 
     const sortedJurisdictions = Array.from(jurisdictionSet).sort();
@@ -174,6 +192,9 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Tax State
                         </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Commitment %
+                        </th>
 
                         {/* Dynamic distribution columns */}
                         {jurisdictions.map(jurisdiction => (
@@ -211,6 +232,9 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-500 text-center">
                             {investor.tax_state}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 text-center">
+                            {formatCommitmentPercentage(investor.commitment_percentage)}
                           </td>
 
                           {/* Dynamic distribution amounts */}
