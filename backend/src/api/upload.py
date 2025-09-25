@@ -9,8 +9,10 @@ from sqlalchemy.orm import Session
 from ..database.connection import get_db
 from ..exceptions.upload_exceptions import FileValidationException, UploadException
 from ..services.file_upload_orchestrator import FileUploadOrchestrator
-from ..services.upload_dependencies import get_upload_services
-from ..services.upload_service_factory import UploadServiceDependencies
+from ..services.upload_dependencies import (
+    UploadServiceDependencies,
+    get_upload_services,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

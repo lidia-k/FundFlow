@@ -1,5 +1,6 @@
 """FastAPI dependency injection for upload services."""
 
+from dataclasses import dataclass
 from functools import lru_cache
 
 from fastapi import Depends
@@ -13,9 +14,24 @@ from .fund_source_data_service import FundSourceDataService
 from .investor_service import InvestorService
 from .session_service import SessionService
 from .tax_calculation_service import TaxCalculationService
-from .upload_service_factory import UploadServiceDependencies
 from .user_service import UserService
 from .validators import ExcelValidator, FileValidator
+
+
+@dataclass
+class UploadServiceDependencies:
+    """Container for all upload-related service dependencies."""
+
+    user_service: UserService
+    session_service: SessionService
+    excel_service: ExcelService
+    investor_service: InvestorService
+    fund_service: FundService
+    fund_source_data_service: FundSourceDataService
+    distribution_service: DistributionService
+    tax_calculation_service: TaxCalculationService
+    file_validator: FileValidator
+    excel_validator: ExcelValidator
 
 
 @lru_cache()

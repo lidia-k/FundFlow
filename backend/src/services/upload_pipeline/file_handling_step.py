@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ...exceptions.upload_exceptions import FileStorageException
 from ...models.upload_context import UploadContext
-from ...services.upload_service_factory import UploadServiceDependencies
+from ...services.upload_dependencies import UploadServiceDependencies
 from .base import UploadPipelineStep
 
 

@@ -13,6 +13,7 @@ from ..exceptions.upload_exceptions import (
 )
 from ..models.upload_context import UploadContext, UploadResult
 from ..models.user_session import UploadStatus
+from .upload_dependencies import UploadServiceDependencies
 from .upload_pipeline import (
     DataProcessingStep,
     ExcelParsingStep,
@@ -21,7 +22,6 @@ from .upload_pipeline import (
     TaxCalculationStep,
     UploadPipelineStep,
 )
-from .upload_service_factory import UploadServiceDependencies
 
 logger = logging.getLogger(__name__)
 
