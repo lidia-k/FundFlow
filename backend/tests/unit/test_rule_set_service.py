@@ -7,6 +7,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+
 from src.models.composite_rule import CompositeRule
 from src.models.enums import IssueSeverity, Quarter, RuleSetStatus, USJurisdiction
 from src.models.salt_rule_set import SaltRuleSet
@@ -27,7 +28,9 @@ def _make_source_file() -> SourceFile:
     )
 
 
-def _make_rule_set(source_file_id: str, status: RuleSetStatus = RuleSetStatus.ACTIVE) -> SaltRuleSet:
+def _make_rule_set(
+    source_file_id: str, status: RuleSetStatus = RuleSetStatus.ACTIVE
+) -> SaltRuleSet:
     now = datetime.utcnow()
     return SaltRuleSet(
         id=str(uuid4()),
@@ -153,6 +156,15 @@ class TestRuleSetService:
         assert result["deletedCounts"]["withholding_rules"] == 1
         assert result["deletedCounts"]["composite_rules"] == 1
         assert db_session.get(SaltRuleSet, rule_set.id) is None
-        assert db_session.query(WithholdingRule).filter_by(rule_set_id=rule_set.id).count() == 0
-        assert db_session.query(CompositeRule).filter_by(rule_set_id=rule_set.id).count() == 0
-        assert db_session.query(ValidationIssue).filter_by(rule_set_id=rule_set.id).count() == 0
+        assert (
+            db_session.query(WithholdingRule).filter_by(rule_set_id=rule_set.id).count()
+            == 0
+        )
+        assert (
+            db_session.query(CompositeRule).filter_by(rule_set_id=rule_set.id).count()
+            == 0
+        )
+        assert (
+            db_session.query(ValidationIssue).filter_by(rule_set_id=rule_set.id).count()
+            == 0
+        )

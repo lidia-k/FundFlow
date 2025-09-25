@@ -1,4 +1,4 @@
-"""Progress tracking component for upload and processing status."""
+// Progress tracking component for upload and processing status.
 
 import React from 'react';
 import { CheckCircle, Circle, AlertCircle, Clock, Loader2 } from 'lucide-react';

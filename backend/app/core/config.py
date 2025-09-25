@@ -1,4 +1,3 @@
-from typing import List
 import os
 
 
@@ -12,7 +11,7 @@ class Settings:
     database_url: str = "sqlite:///./data/fundflow.db"
 
     # CORS
-    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     # File Upload
     max_upload_size: int = 10485760  # 10MB
@@ -50,6 +49,6 @@ def ensure_directories():
         settings.templates_dir,
         "logs",
     ]
-    
+
     for directory in directories:
         os.makedirs(directory, exist_ok=True)

@@ -1,18 +1,19 @@
 """Health check API endpoint."""
 
-import os
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from ..database.connection import get_db
 
 router = APIRouter()
 
 
 @router.get("/health")
-async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def health_check(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Health check endpoint for monitoring application status.
 
@@ -22,10 +23,11 @@ async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
         "status": "healthy",
         "timestamp": "",
         "services": {},
-        "version": "1.2.0"
+        "version": "1.2.0",
     }
 
     from datetime import datetime
+
     health_status["timestamp"] = datetime.utcnow().isoformat() + "Z"
 
     # Check database connectivity
@@ -36,7 +38,7 @@ async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
         health_status["services"]["database"] = {
             "status": "healthy",
             "type": "sqlite",
-            "connection": "active"
+            "connection": "active",
         }
     except Exception as e:
         health_status["status"] = "unhealthy"
@@ -44,7 +46,7 @@ async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "status": "unhealthy",
             "error": str(e),
             "type": "sqlite",
-            "connection": "failed"
+            "connection": "failed",
         }
 
     # Check file system permissions
@@ -61,15 +63,17 @@ async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
         health_status["services"]["filesystem"] = {
             "status": "healthy",
             "uploads_dir": str(uploads_dir.absolute()),
-            "writable": True
+            "writable": True,
         }
     except Exception as e:
         health_status["status"] = "unhealthy"
         health_status["services"]["filesystem"] = {
             "status": "unhealthy",
             "error": str(e),
-            "uploads_dir": str(uploads_dir.absolute() if 'uploads_dir' in locals() else "unknown"),
-            "writable": False
+            "uploads_dir": str(
+                uploads_dir.absolute() if "uploads_dir" in locals() else "unknown"
+            ),
+            "writable": False,
         }
 
     # Check template availability
@@ -81,23 +85,28 @@ async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "status": "healthy" if template_exists else "warning",
             "path": str(template_path.absolute()),
             "exists": template_exists,
-            "note": "Template will be auto-generated if missing" if not template_exists else None
+            "note": (
+                "Template will be auto-generated if missing"
+                if not template_exists
+                else None
+            ),
         }
     except Exception as e:
         health_status["services"]["template"] = {
             "status": "warning",
             "error": str(e),
-            "note": "Template generation may fail"
+            "note": "Template generation may fail",
         }
 
     # Check memory usage (basic)
     try:
         import psutil
+
         memory = psutil.virtual_memory()
         health_status["system"] = {
             "memory_usage_percent": memory.percent,
             "memory_available_gb": round(memory.available / (1024**3), 2),
-            "status": "healthy" if memory.percent < 90 else "warning"
+            "status": "healthy" if memory.percent < 90 else "warning",
         }
 
         if memory.percent >= 90:
@@ -107,13 +116,10 @@ async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
         # psutil not available, skip system metrics
         health_status["system"] = {
             "status": "unknown",
-            "note": "System monitoring not available"
+            "note": "System monitoring not available",
         }
     except Exception as e:
-        health_status["system"] = {
-            "status": "error",
-            "error": str(e)
-        }
+        health_status["system"] = {"status": "error", "error": str(e)}
 
     # Overall health determination
     service_statuses = [
@@ -130,13 +136,10 @@ async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
 
 
 @router.get("/health/simple")
-async def simple_health_check() -> Dict[str, str]:
+async def simple_health_check() -> dict[str, str]:
     """
     Simple health check endpoint for load balancers.
 
     Returns minimal status for quick health verification.
     """
-    return {
-        "status": "healthy",
-        "service": "fundflow-backend"
-    }
+    return {"status": "healthy", "service": "fundflow-backend"}

@@ -1,6 +1,7 @@
 """Template API endpoint for downloading Excel template."""
 
 from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
@@ -20,8 +21,7 @@ async def download_salt_rules_template() -> FileResponse:
     # Check if template exists
     if not salt_template_path.exists():
         raise HTTPException(
-            status_code=404,
-            detail="SALT rules template file not found"
+            status_code=404, detail="SALT rules template file not found"
         )
 
     # Return file
@@ -29,7 +29,9 @@ async def download_salt_rules_template() -> FileResponse:
         path=str(salt_template_path),
         filename="salt_rules_matrix_template.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=salt_rules_matrix_template.xlsx"}
+        headers={
+            "Content-Disposition": "attachment; filename=salt_rules_matrix_template.xlsx"
+        },
     )
 
 
@@ -47,7 +49,7 @@ async def download_template() -> FileResponse:
     if not template_path.exists():
         # If template doesn't exist, create a basic one
         from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Alignment, Font, PatternFill
 
         # Create template directory if it doesn't exist
         template_path.parent.mkdir(parents=True, exist_ok=True)
@@ -69,12 +71,14 @@ async def download_template() -> FileResponse:
             "NM Withholding Exemption",
             "NM Composite Exemption",
             "CO Composite Exemption",
-            "CO Withholding Exemption"
+            "CO Withholding Exemption",
         ]
 
         # Style for headers
         header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        header_fill = PatternFill(
+            start_color="366092", end_color="366092", fill_type="solid"
+        )
         header_alignment = Alignment(horizontal="center", vertical="center")
 
         # Add headers
@@ -96,7 +100,7 @@ async def download_template() -> FileResponse:
             "",
             "",
             "X",
-            ""
+            "",
         ]
 
         for col, value in enumerate(example_data, 1):
@@ -120,7 +124,7 @@ async def download_template() -> FileResponse:
         instructions = [
             "FundFlow Investor Data Template Instructions (v1.3 Format)",
             "",
-            "Column Descriptions:",
+            "SHEET 1: Investor Data - Column Descriptions:",
             "• Investor Name: Full legal name of the investor entity",
             "• Investor Entity Type: LLC_Taxed as Partnership, Corporation, Individual, Trust, etc.",
             "• Investor Tax State: Two-letter state code (e.g., NY, CA, TX)",
@@ -133,20 +137,30 @@ async def download_template() -> FileResponse:
             "• CO Composite Exemption: Enter 'X' if exempt, leave blank if not",
             "• CO Withholding Exemption: Enter 'X' if exempt, leave blank if not",
             "",
+            "SHEET 2: Fund Source Data - Column Descriptions:",
+            "• Company: Portfolio company name (e.g., Company A, Company B)",
+            "• State: Two-letter state code where income is sourced (e.g., TX, NM, CO)",
+            "• Share (%): Fund's ownership percentage in the company (0-100, no % symbol)",
+            "• Distribution Amount: Total distribution amount for this company/state combination",
+            "",
             "File Requirements:",
             "• Maximum file size: 10MB",
             "• Supported formats: .xlsx, .xls",
-            "• Data should start from row 2 (headers in row 1)",
+            "• Data should start from row 2 (headers in row 1) on both sheets",
+            "• Fund Source Data sheet is optional for backward compatibility",
             "",
             "Validation Rules:",
-            "• All fields are required except exemption fields",
+            "• INVESTOR DATA: All fields are required except exemption fields",
+            "• FUND SOURCE DATA: All columns are required when sheet is present",
             "• Distribution amounts should be in numeric format (can include commas)",
             "• State codes must be valid US states",
             "• Entity types must match allowed values",
             "• Commitment percentage must include % symbol",
+            "• Fund share percentage must be 0-100 (without % symbol)",
+            "• No duplicate Company/State combinations allowed in Fund Source Data",
             "• Exemption fields: use 'X' for exempt, leave blank for not exempt",
             "",
-            "For support, contact: support@fundflow.com"
+            "For support, contact: support@fundflow.com",
         ]
 
         for row, instruction in enumerate(instructions, 1):
@@ -156,7 +170,45 @@ async def download_template() -> FileResponse:
         instructions_ws.cell(row=1, column=1).font = Font(bold=True, size=14)
 
         # Auto-adjust instructions column width
-        instructions_ws.column_dimensions['A'].width = 80
+        instructions_ws.column_dimensions["A"].width = 80
+
+        # Add Fund Source Data sheet
+        fund_source_ws = wb.create_sheet("Fund Source Data")
+        fund_source_ws.title = "Fund Source Data"
+
+        # Fund Source Data headers
+        fund_source_headers = ["Company", "State", "Share (%)", "Distribution Amount"]
+
+        # Add headers with same styling
+        for col, header in enumerate(fund_source_headers, 1):
+            cell = fund_source_ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+
+        # Add example fund source data
+        fund_source_example = [
+            ["Company A", "TX", "57.19", "10,000,000"],
+            ["Company A", "NM", "28.18", "10,000,000"],
+            ["Company B", "CO", "100.00", "5,000,000"],
+        ]
+
+        for row_idx, row_data in enumerate(fund_source_example, 2):
+            for col, value in enumerate(row_data, 1):
+                fund_source_ws.cell(row=row_idx, column=col, value=value)
+
+        # Auto-adjust Fund Source Data column widths
+        for column in fund_source_ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 25)
+            fund_source_ws.column_dimensions[column_letter].width = adjusted_width
 
         # Save template
         wb.save(str(template_path))
@@ -164,8 +216,7 @@ async def download_template() -> FileResponse:
     # Verify template file exists
     if not template_path.exists():
         raise HTTPException(
-            status_code=500,
-            detail="Template file could not be created or found"
+            status_code=500, detail="Template file could not be created or found"
         )
 
     # Return file
@@ -173,5 +224,7 @@ async def download_template() -> FileResponse:
         path=str(template_path),
         filename="fundflow_investor_template.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=fundflow_investor_template.xlsx"}
+        headers={
+            "Content-Disposition": "attachment; filename=fundflow_investor_template.xlsx"
+        },
     )

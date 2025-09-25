@@ -1,4 +1,4 @@
-"""Error handling component for application-wide error display."""
+// Error handling component for application-wide error display.
 
 import React from 'react';
 import { AlertCircle, XCircle, AlertTriangle, Info, RefreshCw, Home, Download } from 'lucide-react';

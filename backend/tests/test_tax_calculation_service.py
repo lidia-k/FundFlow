@@ -5,14 +5,16 @@ from unittest.mock import MagicMock
 
 from src.models.composite_rule import CompositeRule
 from src.models.distribution import Distribution
-from src.models.fund import Fund
 from src.models.enums import InvestorEntityType, USJurisdiction
+from src.models.fund import Fund
 from src.models.investor import Investor
 from src.models.withholding_rule import WithholdingRule
 from src.services.tax_calculation_service import RuleContext, TaxCalculationService
 
 
-def make_investor(entity_type: InvestorEntityType, tax_state: USJurisdiction) -> Investor:
+def make_investor(
+    entity_type: InvestorEntityType, tax_state: USJurisdiction
+) -> Investor:
     investor = Investor(
         investor_name="Test Investor",
         investor_entity_type=entity_type,
@@ -90,7 +92,9 @@ class TestTaxCalculationService:
 
     def test_composite_tax_applied_when_mandatory_and_threshold_met(self):
         investor = make_investor(InvestorEntityType.PARTNERSHIP, USJurisdiction.CA)
-        distribution = make_distribution(investor, Decimal("1200.00"), USJurisdiction.NY)
+        distribution = make_distribution(
+            investor, Decimal("1200.00"), USJurisdiction.NY
+        )
 
         composite_rule = CompositeRule(
             rule_set_id="ruleset",
@@ -109,7 +113,9 @@ class TestTaxCalculationService:
 
     def test_withholding_tax_applied_when_composite_not_applicable(self):
         investor = make_investor(InvestorEntityType.PARTNERSHIP, USJurisdiction.CA)
-        distribution = make_distribution(investor, Decimal("1500.00"), USJurisdiction.TX)
+        distribution = make_distribution(
+            investor, Decimal("1500.00"), USJurisdiction.TX
+        )
 
         withholding_rule = WithholdingRule(
             rule_set_id="ruleset",
@@ -142,7 +148,9 @@ class TestTaxCalculationService:
 
     def test_same_state_distribution_skips_taxes(self):
         investor = make_investor(InvestorEntityType.PARTNERSHIP, USJurisdiction.TX)
-        distribution = make_distribution(investor, Decimal("1500.00"), USJurisdiction.TX)
+        distribution = make_distribution(
+            investor, Decimal("1500.00"), USJurisdiction.TX
+        )
 
         composite_rule = CompositeRule(
             rule_set_id="ruleset",

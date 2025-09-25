@@ -2,14 +2,25 @@
 
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLEnum
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum as SQLEnum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
+
 from ..database.connection import Base
 
 
 class ErrorSeverity(Enum):
     """Error severity enumeration."""
-    ERROR = "ERROR"    # Blocks processing
+
+    ERROR = "ERROR"  # Blocks processing
     WARNING = "WARNING"  # Allows processing but flags issue
 
 
@@ -19,7 +30,9 @@ class ValidationError(Base):
     __tablename__ = "validation_errors"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(36), ForeignKey("user_sessions.session_id"), nullable=False)
+    session_id = Column(
+        String(36), ForeignKey("user_sessions.session_id"), nullable=False
+    )
     row_number = Column(Integer, nullable=False)
     column_name = Column(String(255), nullable=False)
     error_code = Column(String(50), nullable=False)

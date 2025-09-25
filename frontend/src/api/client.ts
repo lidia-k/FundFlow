@@ -4,6 +4,7 @@ import type {
   CalculationResult,
   SessionInfo,
   ResultsPreviewResponse,
+  FundSourceDataResponse,
 } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -58,6 +59,12 @@ export const api = {
     const response = await apiClient.get<ResultsPreviewResponse>(
       `/results/${sessionId}/preview?limit=${limit}&mode=${mode}`
     );
+    return response.data;
+  },
+
+  // Get fund source data
+  getFundSourceData: async (sessionId: string): Promise<FundSourceDataResponse> => {
+    const response = await apiClient.get<FundSourceDataResponse>(`/results/${sessionId}/fund-source`);
     return response.data;
   },
 

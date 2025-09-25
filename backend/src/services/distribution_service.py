@@ -1,11 +1,13 @@
 """Distribution processing service with exemptions."""
 
 from decimal import Decimal
-from typing import List, Dict, Any
+from typing import Any
+
 from sqlalchemy.orm import Session, joinedload
+
 from ..models.distribution import Distribution
-from ..models.fund import Fund
 from ..models.enums import USJurisdiction
+from ..models.fund import Fund
 from ..models.investor import Investor
 
 
@@ -20,8 +22,8 @@ class DistributionService:
         investor: Investor,
         session_id: str,
         fund: Fund,
-        parsed_row: Dict[str, Any]
-    ) -> List[Distribution]:
+        parsed_row: dict[str, Any],
+    ) -> list[Distribution]:
         """
         Create distribution records for an investor based on parsed Excel row.
 
@@ -31,9 +33,9 @@ class DistributionService:
         distributions = []
 
         # Process each state that has distribution data
-        distributions_data = parsed_row.get('distributions', {})
-        withholding_exemptions = parsed_row.get('withholding_exemptions', {})
-        composite_exemptions = parsed_row.get('composite_exemptions', {})
+        distributions_data = parsed_row.get("distributions", {})
+        withholding_exemptions = parsed_row.get("withholding_exemptions", {})
+        composite_exemptions = parsed_row.get("composite_exemptions", {})
 
         for state_code, amount in distributions_data.items():
             if amount > 0:
@@ -66,7 +68,7 @@ class DistributionService:
 
         return distributions
 
-    def get_distributions_by_session(self, session_id: str) -> List[Distribution]:
+    def get_distributions_by_session(self, session_id: str) -> list[Distribution]:
         """Get all distributions for a session."""
         return (
             self.db.query(Distribution)
@@ -78,13 +80,9 @@ class DistributionService:
             .all()
         )
 
-
     def get_distributions_by_fund_period(
-        self,
-        fund_code: str,
-        period_quarter: str,
-        period_year: int
-    ) -> List[Distribution]:
+        self, fund_code: str, period_quarter: str, period_year: int
+    ) -> list[Distribution]:
         """Get all distributions for a specific fund and period."""
         return (
             self.db.query(Distribution)
@@ -98,33 +96,27 @@ class DistributionService:
         )
 
     def calculate_total_distributions(
-        self,
-        fund_code: str,
-        period_quarter: str,
-        period_year: int
-    ) -> Dict[str, Decimal]:
+        self, fund_code: str, period_quarter: str, period_year: int
+    ) -> dict[str, Decimal]:
         """Calculate total distribution amounts by jurisdiction."""
         distributions = self.get_distributions_by_fund_period(
             fund_code, period_quarter, period_year
         )
 
-        totals = {"TOTAL": Decimal('0.00')}
+        totals = {"TOTAL": Decimal("0.00")}
 
         for dist in distributions:
             jurisdiction_key = dist.jurisdiction.value
             if jurisdiction_key not in totals:
-                totals[jurisdiction_key] = Decimal('0.00')
+                totals[jurisdiction_key] = Decimal("0.00")
             totals[jurisdiction_key] += dist.amount
             totals["TOTAL"] += dist.amount
 
         return totals
 
     def get_exemption_summary(
-        self,
-        fund_code: str,
-        period_quarter: str,
-        period_year: int
-    ) -> Dict[str, Dict[str, int]]:
+        self, fund_code: str, period_quarter: str, period_year: int
+    ) -> dict[str, dict[str, int]]:
         """Get summary of exemptions by jurisdiction."""
         distributions = self.get_distributions_by_fund_period(
             fund_code, period_quarter, period_year
@@ -138,7 +130,7 @@ class DistributionService:
                 summary[jurisdiction_key] = {
                     "composite_exemptions": 0,
                     "withholding_exemptions": 0,
-                    "total_investors": 0
+                    "total_investors": 0,
                 }
 
             summary[jurisdiction_key]["total_investors"] += 1

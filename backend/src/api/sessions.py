@@ -1,21 +1,25 @@
 """Sessions API endpoint for retrieving and managing user upload sessions."""
 
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, Query, HTTPException
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
 from ..database.connection import get_db
-from ..services.session_service import SessionService
 from ..models.user_session import UploadStatus
+from ..services.session_service import SessionService
 
 router = APIRouter()
 
 
 @router.get("/sessions")
 async def get_sessions(
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
+    limit: int = Query(
+        50, ge=1, le=100, description="Maximum number of sessions to return"
+    ),
     status_filter: str = Query(None, description="Filter by status (optional)"),
-    db: Session = Depends(get_db)
-) -> List[Dict[str, Any]]:
+    db: Session = Depends(get_db),
+) -> list[dict[str, Any]]:
     """
     Get user's upload sessions.
 
@@ -39,9 +43,7 @@ async def get_sessions(
 
     # Get user sessions
     sessions = session_service.get_user_sessions(
-        user_id=user_id,
-        limit=limit,
-        status_filter=status_enum
+        user_id=user_id, limit=limit, status_filter=status_enum
     )
 
     # Format sessions for frontend consumption
@@ -90,9 +92,8 @@ def _map_upload_status_to_calculation_status(upload_status: UploadStatus) -> str
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(
-    session_id: str,
-    db: Session = Depends(get_db)
-) -> Dict[str, str]:
+    session_id: str, db: Session = Depends(get_db)
+) -> dict[str, str]:
     """
     Delete a session and all its related data.
 
@@ -117,7 +118,7 @@ async def delete_session(
     if not success:
         raise HTTPException(
             status_code=404,
-            detail="Session not found or you are not authorized to delete it"
+            detail="Session not found or you are not authorized to delete it",
         )
 
     # Commit the transaction

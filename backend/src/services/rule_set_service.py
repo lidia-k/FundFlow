@@ -1,14 +1,15 @@
 """Rule set lifecycle management service for SALT rules."""
 
 import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, date
+from typing import Any
+
 from sqlalchemy.orm import Session
 
-from ..models.salt_rule_set import SaltRuleSet, RuleSetStatus
-from ..models.withholding_rule import WithholdingRule
 from ..models.composite_rule import CompositeRule
+from ..models.salt_rule_set import RuleSetStatus, SaltRuleSet
 from ..models.validation_issue import ValidationIssue
+from ..models.withholding_rule import WithholdingRule
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +20,9 @@ class RuleSetService:
         """Initialize the rule set service."""
         self.db = db
 
-    def get_rule_set_detail(self, rule_set_id: str, include_rules: bool = False) -> Dict[str, Any]:
+    def get_rule_set_detail(
+        self, rule_set_id: str, include_rules: bool = False
+    ) -> dict[str, Any]:
         """
         Get detailed information about a rule set.
 
@@ -52,7 +55,7 @@ class RuleSetService:
             self.db.query(ValidationIssue)
             .filter(
                 ValidationIssue.rule_set_id == rule_set_id,
-                ValidationIssue.severity == "error"
+                ValidationIssue.severity == "error",
             )
             .count()
         )
@@ -61,7 +64,7 @@ class RuleSetService:
             self.db.query(ValidationIssue)
             .filter(
                 ValidationIssue.rule_set_id == rule_set_id,
-                ValidationIssue.severity == "warning"
+                ValidationIssue.severity == "warning",
             )
             .count()
         )
@@ -74,9 +77,17 @@ class RuleSetService:
             "version": rule_set.version,
             "status": rule_set.status.value,
             "effectiveDate": rule_set.effective_date.isoformat(),
-            "expirationDate": rule_set.expiration_date.isoformat() if rule_set.expiration_date else None,
+            "expirationDate": (
+                rule_set.expiration_date.isoformat()
+                if rule_set.expiration_date
+                else None
+            ),
             "createdAt": rule_set.created_at.isoformat() + "Z",
-            "publishedAt": rule_set.published_at.isoformat() + "Z" if rule_set.published_at else None,
+            "publishedAt": (
+                rule_set.published_at.isoformat() + "Z"
+                if rule_set.published_at
+                else None
+            ),
             "createdBy": rule_set.created_by,
             "description": rule_set.description,
             "ruleCountWithholding": withholding_count,
@@ -87,17 +98,22 @@ class RuleSetService:
                 "warningCount": warning_count,
                 "rulesProcessed": {
                     "withholding": withholding_count,
-                    "composite": composite_count
-                }
+                    "composite": composite_count,
+                },
             },
-            "sourceFile": {
-                "id": str(rule_set.source_file.id),
-                "filename": rule_set.source_file.filename,
-                "fileSize": rule_set.source_file.file_size,
-                "contentType": rule_set.source_file.content_type,
-                "uploadTimestamp": rule_set.source_file.upload_timestamp.isoformat() + "Z",
-                "uploadedBy": rule_set.source_file.uploaded_by
-            } if rule_set.source_file else None
+            "sourceFile": (
+                {
+                    "id": str(rule_set.source_file.id),
+                    "filename": rule_set.source_file.filename,
+                    "fileSize": rule_set.source_file.file_size,
+                    "contentType": rule_set.source_file.content_type,
+                    "uploadTimestamp": rule_set.source_file.upload_timestamp.isoformat()
+                    + "Z",
+                    "uploadedBy": rule_set.source_file.uploaded_by,
+                }
+                if rule_set.source_file
+                else None
+            ),
         }
 
         # Include actual rule data if requested
@@ -127,7 +143,7 @@ class RuleSetService:
                     "entityType": rule.entity_type,
                     "taxRate": float(rule.tax_rate),
                     "incomeThreshold": float(rule.income_threshold),
-                    "taxThreshold": float(rule.tax_threshold)
+                    "taxThreshold": float(rule.tax_threshold),
                 }
                 for rule in withholding_rules
             ]
@@ -140,16 +156,14 @@ class RuleSetService:
                     "entityType": rule.entity_type,
                     "taxRate": float(rule.tax_rate),
                     "incomeThreshold": float(rule.income_threshold),
-                    "mandatoryFiling": rule.mandatory_filing
+                    "mandatoryFiling": rule.mandatory_filing,
                 }
                 for rule in composite_rules
             ]
 
         return result
 
-
-
-    def delete_rule_set(self, rule_set_id: str, force: bool = False) -> Dict[str, Any]:
+    def delete_rule_set(self, rule_set_id: str, force: bool = False) -> dict[str, Any]:
         """
         Delete a rule set and all associated data.
 
@@ -171,7 +185,7 @@ class RuleSetService:
         deleted_counts = {
             "withholding_rules": 0,
             "composite_rules": 0,
-            "validation_issues": 0
+            "validation_issues": 0,
         }
 
         # Delete withholding rules
@@ -195,7 +209,6 @@ class RuleSetService:
         deleted_counts["validation_issues"] = validation_issues.count()
         validation_issues.delete()
 
-
         # Delete the rule set itself
         self.db.delete(rule_set)
         self.db.commit()
@@ -205,9 +218,5 @@ class RuleSetService:
         return {
             "ruleSetId": rule_set_id,
             "deleted": True,
-            "deletedCounts": deleted_counts
+            "deletedCounts": deleted_counts,
         }
-
-
-
- 

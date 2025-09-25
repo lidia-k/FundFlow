@@ -2,8 +2,16 @@
 
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, DateTime, CheckConstraint, UniqueConstraint
+
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import relationship
+
 from ..database.connection import Base
 
 
@@ -31,17 +39,15 @@ class SourceFile(Base):
     # Table constraints
     __table_args__ = (
         CheckConstraint(
-            "file_size > 0 AND file_size <= 10485760",
-            name="ck_source_file_size_valid"
+            "file_size > 0 AND file_size <= 10485760", name="ck_source_file_size_valid"
         ),
         CheckConstraint(
             "content_type IN ('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel.sheet.macroEnabled.12')",
-            name="ck_source_file_content_type_excel"
+            name="ck_source_file_content_type_excel",
         ),
         CheckConstraint(
-            "length(filename) <= 255",
-            name="ck_source_file_filename_length"
-        )
+            "length(filename) <= 255", name="ck_source_file_filename_length"
+        ),
     )
 
     def __repr__(self) -> str:

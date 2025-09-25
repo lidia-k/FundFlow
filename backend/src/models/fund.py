@@ -1,7 +1,8 @@
 """Fund model storing period metadata and relationships."""
 
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, DateTime, Index
+
+from sqlalchemy import Column, DateTime, Index, Integer, String
 from sqlalchemy.orm import relationship
 
 from ..database.connection import Base

@@ -1,10 +1,12 @@
 """Investor model for persistent investor entities."""
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Enum as SQLEnum, Index
+
+from sqlalchemy import Column, DateTime, Enum as SQLEnum, Index, Integer, String
 from sqlalchemy.orm import relationship
+
 from ..database.connection import Base
-from .enums import USJurisdiction, InvestorEntityType
+from .enums import InvestorEntityType, USJurisdiction
 
 
 class Investor(Base):
@@ -17,7 +19,9 @@ class Investor(Base):
     investor_entity_type = Column(SQLEnum(InvestorEntityType), nullable=False)
     investor_tax_state = Column(SQLEnum(USJurisdiction), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
     # Relationships
     distributions = relationship("Distribution", back_populates="investor")
@@ -38,5 +42,5 @@ Index(
     Investor.investor_name,
     Investor.investor_entity_type,
     Investor.investor_tax_state,
-    unique=True
+    unique=True,
 )

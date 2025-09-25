@@ -1,4 +1,4 @@
-"""File upload component with drag-and-drop functionality."""
+// File upload component with drag-and-drop functionality.
 
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';

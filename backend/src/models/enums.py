@@ -1,7 +1,6 @@
 """Shared enums for models."""
 
 from enum import Enum
-from typing import Dict
 
 
 class InvestorEntityType(Enum):
@@ -23,18 +22,27 @@ class InvestorEntityType(Enum):
     TRUST = ("Trust", "Trust")
     S_CORPORATION = ("S Corporation", "S Corporation")
     PARTNERSHIP = ("Partnership", "Partnership")
-    JOINT_TENANCY_TENANCY_IN_COMMON = ("Joint Tenancy / Tenancy in Common", "Individual")
+    JOINT_TENANCY_TENANCY_IN_COMMON = (
+        "Joint Tenancy / Tenancy in Common",
+        "Individual",
+    )
     GOVERNMENT_BENEFIT_PLAN = ("Government Benefit Plan", "Exempt Org")
     IRA_KEOGH = ("IRA/Keogh", "IRA")
     IRA = ("IRA", "IRA")
     EXEMPT_ORGANIZATION_BENEFIT = ("Exempt Organization_Benefit", "Exempt Org")
     LLP = ("LLP", "Partnership")
-    BENEFIT_PLAN_INVESTOR_ERISA_TITLE_I = ("Benefit Plan Investor [ERISA Title I Plan]", "Exempt Org")
+    BENEFIT_PLAN_INVESTOR_ERISA_TITLE_I = (
+        "Benefit Plan Investor [ERISA Title I Plan]",
+        "Exempt Org",
+    )
     GRANTOR_TRUST = ("Grantor Trust", "Individual")
     LLC_TAXED_AS_CORPORATION = ("LLC_Taxed as Corporation", "Corporation")
     LLC_TAXED_AS_PARTNERSHIP_ALT = ("LLC – Taxed as Partnership", "Partnership")
     ESTATE = ("Estate", "Estate")
-    BENEFIT_PLAN_INVESTOR_PLAN_ASSETS = ("Benefit Plan Investor [Plan Assets Entity_ERISA 3(42)]", "Exempt Org")
+    BENEFIT_PLAN_INVESTOR_PLAN_ASSETS = (
+        "Benefit Plan Investor [Plan Assets Entity_ERISA 3(42)]",
+        "Exempt Org",
+    )
 
     @classmethod
     def get_by_coding(cls, coding: str) -> "InvestorEntityType":
@@ -45,7 +53,7 @@ class InvestorEntityType(Enum):
         raise ValueError(f"No entity type found for coding: {coding}")
 
     @classmethod
-    def get_all_codings(cls) -> Dict[str, str]:
+    def get_all_codings(cls) -> dict[str, str]:
         """Get mapping of all entity types to their coding values."""
         return {entity_type.value: entity_type.coding for entity_type in cls}
 
@@ -57,6 +65,7 @@ class InvestorEntityType(Enum):
 
 class USJurisdiction(Enum):
     """US states and DC jurisdiction enumeration."""
+
     AL = "AL"
     AK = "AK"
     AZ = "AZ"
@@ -112,12 +121,14 @@ class USJurisdiction(Enum):
 
 class RuleSetStatus(Enum):
     """SALT rule set status enumeration."""
+
     ACTIVE = "active"
     ARCHIVED = "archived"
 
 
 class Quarter(Enum):
     """Quarter enumeration for SALT rule sets."""
+
     Q1 = "Q1"
     Q2 = "Q2"
     Q3 = "Q3"
@@ -126,5 +137,6 @@ class Quarter(Enum):
 
 class IssueSeverity(Enum):
     """Validation issue severity enumeration."""
+
     ERROR = "error"
     WARNING = "warning"

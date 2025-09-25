@@ -2,7 +2,8 @@
 
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Column, Integer, String, ForeignKey, Numeric, DateTime, Index
+
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from ..database.connection import Base
@@ -22,9 +23,7 @@ class InvestorFundCommitment(Base):
     investor = relationship("Investor", back_populates="fund_commitments")
     fund = relationship("Fund", back_populates="investor_commitments")
 
-    __table_args__ = (
-        Index("idx_commitment_lookup", fund_code),
-    )
+    __table_args__ = (Index("idx_commitment_lookup", fund_code),)
 
     def __repr__(self) -> str:
         return (

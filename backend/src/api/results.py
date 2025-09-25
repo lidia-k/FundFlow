@@ -1,28 +1,28 @@
 """Results API endpoint for retrieving session results."""
 
+import csv
+import io
 import os
 from pathlib import Path
 from typing import Any, Dict
-import io
-import csv
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+
 from ..database.connection import get_db
-from ..services.session_service import SessionService
-from ..services.distribution_service import DistributionService
-from ..services.validation_service import ValidationService
-from ..services.tax_calculation_service import TaxCalculationService
 from ..models.investor_fund_commitment import InvestorFundCommitment
+from ..services.distribution_service import DistributionService
+from ..services.fund_source_data_service import FundSourceDataService
+from ..services.session_service import SessionService
+from ..services.tax_calculation_service import TaxCalculationService
+from ..services.validation_service import ValidationService
 
 router = APIRouter()
 
 
 @router.get("/results/{session_id}")
-async def get_results(
-    session_id: str,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+async def get_results(session_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get processing results and status for a session.
 
@@ -36,10 +36,7 @@ async def get_results(
     # Get session
     session = session_service.get_session_by_id(session_id)
     if not session:
-        raise HTTPException(
-            status_code=404,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=404, detail="Session not found")
 
     # Get session summary
     session_summary = session_service.get_session_summary(session_id)
@@ -51,41 +48,49 @@ async def get_results(
     distribution_data = []
     for dist in distributions:
         fund = dist.fund
-        distribution_data.append({
-            "id": dist.id,
-            "investor_id": dist.investor_id,
-            "investor_name": dist.investor.investor_name,
-            "investor_entity_type": dist.investor.investor_entity_type.value,
-            "investor_tax_state": dist.investor.investor_tax_state,
-            "fund_code": dist.fund_code,
-            "period_quarter": fund.period_quarter if fund else None,
-            "period_year": fund.period_year if fund else None,
-            "jurisdiction": dist.jurisdiction.value,
-            "amount": float(dist.amount),
-            "composite_exemption": dist.composite_exemption,
-            "withholding_exemption": dist.withholding_exemption,
-            "composite_tax_amount": float(dist.composite_tax_amount)
-            if dist.composite_tax_amount is not None
-            else None,
-            "withholding_tax_amount": float(dist.withholding_tax_amount)
-            if dist.withholding_tax_amount is not None
-            else None,
-            "created_at": dist.created_at.isoformat()
-        })
+        distribution_data.append(
+            {
+                "id": dist.id,
+                "investor_id": dist.investor_id,
+                "investor_name": dist.investor.investor_name,
+                "investor_entity_type": dist.investor.investor_entity_type.value,
+                "investor_tax_state": dist.investor.investor_tax_state,
+                "fund_code": dist.fund_code,
+                "period_quarter": fund.period_quarter if fund else None,
+                "period_year": fund.period_year if fund else None,
+                "jurisdiction": dist.jurisdiction.value,
+                "amount": float(dist.amount),
+                "composite_exemption": dist.composite_exemption,
+                "withholding_exemption": dist.withholding_exemption,
+                "composite_tax_amount": (
+                    float(dist.composite_tax_amount)
+                    if dist.composite_tax_amount is not None
+                    else None
+                ),
+                "withholding_tax_amount": (
+                    float(dist.withholding_tax_amount)
+                    if dist.withholding_tax_amount is not None
+                    else None
+                ),
+                "created_at": dist.created_at.isoformat(),
+            }
+        )
 
     # Get validation errors
     validation_errors = validation_service.get_errors_by_session(session_id)
     error_data = []
     for error in validation_errors:
-        error_data.append({
-            "row_number": error.row_number,
-            "column_name": error.column_name,
-            "error_code": error.error_code,
-            "error_message": error.error_message,
-            "severity": error.severity.value,
-            "field_value": error.field_value,
-            "created_at": error.created_at.isoformat()
-        })
+        error_data.append(
+            {
+                "row_number": error.row_number,
+                "column_name": error.column_name,
+                "error_code": error.error_code,
+                "error_message": error.error_message,
+                "severity": error.severity.value,
+                "field_value": error.field_value,
+                "created_at": error.created_at.isoformat(),
+            }
+        )
 
     # Get error summary
     error_summary = validation_service.get_error_summary(session_id)
@@ -97,20 +102,18 @@ async def get_results(
         first_dist = distributions[0]
         fund = first_dist.fund
         if not fund:
-            raise HTTPException(status_code=500, detail="Fund metadata missing for distribution")
+            raise HTTPException(
+                status_code=500, detail="Fund metadata missing for distribution"
+            )
         distribution_summary = distribution_service.calculate_total_distributions(
-            first_dist.fund_code,
-            fund.period_quarter,
-            fund.period_year
+            first_dist.fund_code, fund.period_quarter, fund.period_year
         )
         # Convert Decimal to float for JSON serialization
         distribution_summary = {k: float(v) for k, v in distribution_summary.items()}
 
         # Get exemption summary
         exemption_summary = distribution_service.get_exemption_summary(
-            first_dist.fund_code,
-            fund.period_quarter,
-            fund.period_year
+            first_dist.fund_code, fund.period_quarter, fund.period_year
         )
         distribution_summary["exemption_summary"] = exemption_summary
 
@@ -119,12 +122,9 @@ async def get_results(
         "distributions": {
             "data": distribution_data,
             "count": len(distribution_data),
-            "summary": distribution_summary
+            "summary": distribution_summary,
         },
-        "validation_errors": {
-            "data": error_data,
-            "summary": error_summary
-        }
+        "validation_errors": {"data": error_data, "summary": error_summary},
     }
 
 
@@ -133,8 +133,8 @@ async def get_results_preview(
     session_id: str,
     limit: int = 100,
     mode: str = Query("upload", pattern="^(upload|results)$"),
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     """
     Get preview of first N distribution records for display.
 
@@ -147,10 +147,7 @@ async def get_results_preview(
     # Get session
     session = session_service.get_session_by_id(session_id)
     if not session:
-        raise HTTPException(
-            status_code=404,
-            detail="Session not found"
-        )
+        raise HTTPException(status_code=404, detail="Session not found")
 
     # Get limited distributions
     distributions = distribution_service.get_distributions_by_session(session_id)
@@ -186,7 +183,7 @@ async def get_results_preview(
             "jurisdiction": dist.jurisdiction.value,
             "amount": float(dist.amount),
             "fund_code": dist.fund_code,
-            "period": f"{fund.period_quarter} {fund.period_year}" if fund else None
+            "period": f"{fund.period_quarter} {fund.period_year}" if fund else None,
         }
 
         commitment_key = (dist.investor_id, dist.fund_code)
@@ -219,15 +216,12 @@ async def get_results_preview(
         "preview_data": preview_data,
         "total_records": len(distributions),
         "preview_limit": limit,
-        "showing_count": len(preview_data)
+        "showing_count": len(preview_data),
     }
 
 
 @router.get("/results/{session_id}/report")
-async def download_results_report(
-    session_id: str,
-    db: Session = Depends(get_db)
-):
+async def download_results_report(session_id: str, db: Session = Depends(get_db)):
     """Download detailed tax calculation report for auditing."""
     session_service = SessionService(db)
     distribution_service = DistributionService(db)
@@ -239,32 +233,36 @@ async def download_results_report(
 
     distributions = distribution_service.get_distributions_by_session(session_id)
     if not distributions:
-        raise HTTPException(status_code=404, detail="No distributions found for session")
+        raise HTTPException(
+            status_code=404, detail="No distributions found for session"
+        )
 
     rule_context = tax_service.get_rule_context()
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Investor Name",
-        "Entity Type",
-        "Investor Tax State",
-        "Jurisdiction",
-        "Distribution Amount",
-        "Composite Exemption",
-        "Withholding Exemption",
-        "Composite Tax Amount",
-        "Withholding Tax Amount",
-        "Applied Tax",
-        "Composite Rule ID",
-        "Composite Rate",
-        "Composite Income Threshold",
-        "Composite Mandatory Filing",
-        "Withholding Rule ID",
-        "Withholding Rate",
-        "Withholding Income Threshold",
-        "Withholding Tax Threshold",
-    ])
+    writer.writerow(
+        [
+            "Investor Name",
+            "Entity Type",
+            "Investor Tax State",
+            "Jurisdiction",
+            "Distribution Amount",
+            "Composite Exemption",
+            "Withholding Exemption",
+            "Composite Tax Amount",
+            "Withholding Tax Amount",
+            "Applied Tax",
+            "Composite Rule ID",
+            "Composite Rate",
+            "Composite Income Threshold",
+            "Composite Mandatory Filing",
+            "Withholding Rule ID",
+            "Withholding Rate",
+            "Withholding Income Threshold",
+            "Withholding Tax Threshold",
+        ]
+    )
 
     for dist in distributions:
         investor = dist.investor
@@ -273,9 +271,7 @@ async def download_results_report(
 
         entity_type = investor.investor_entity_type
         entity_code = (
-            entity_type.coding
-            if hasattr(entity_type, "coding")
-            else str(entity_type)
+            entity_type.coding if hasattr(entity_type, "coding") else str(entity_type)
         )
         rule_key = (dist.jurisdiction.value, entity_code)
 
@@ -297,33 +293,80 @@ async def download_results_report(
             else str(investor.investor_tax_state)
         )
 
-        writer.writerow([
-            investor.investor_name,
-            investor.investor_entity_type.value,
-            investor_state,
-            dist.jurisdiction.value,
-            f"{dist.amount:.2f}",
-            "Yes" if dist.composite_exemption else "No",
-            "Yes" if dist.withholding_exemption else "No",
-            f"{dist.composite_tax_amount:.2f}" if dist.composite_tax_amount is not None else "",
-            f"{dist.withholding_tax_amount:.2f}" if dist.withholding_tax_amount is not None else "",
-            applied_tax,
-            getattr(composite_rule, "id", ""),
-            f"{composite_rule.tax_rate:.4f}" if composite_rule else "",
-            f"{composite_rule.income_threshold:.2f}" if composite_rule else "",
-            getattr(composite_rule, "mandatory_filing", ""),
-            getattr(withholding_rule, "id", ""),
-            f"{withholding_rule.tax_rate:.4f}" if withholding_rule else "",
-            f"{withholding_rule.income_threshold:.2f}" if withholding_rule else "",
-            f"{withholding_rule.tax_threshold:.2f}" if withholding_rule else "",
-        ])
+        writer.writerow(
+            [
+                investor.investor_name,
+                investor.investor_entity_type.value,
+                investor_state,
+                dist.jurisdiction.value,
+                f"{dist.amount:.2f}",
+                "Yes" if dist.composite_exemption else "No",
+                "Yes" if dist.withholding_exemption else "No",
+                (
+                    f"{dist.composite_tax_amount:.2f}"
+                    if dist.composite_tax_amount is not None
+                    else ""
+                ),
+                (
+                    f"{dist.withholding_tax_amount:.2f}"
+                    if dist.withholding_tax_amount is not None
+                    else ""
+                ),
+                applied_tax,
+                getattr(composite_rule, "id", ""),
+                f"{composite_rule.tax_rate:.4f}" if composite_rule else "",
+                f"{composite_rule.income_threshold:.2f}" if composite_rule else "",
+                getattr(composite_rule, "mandatory_filing", ""),
+                getattr(withholding_rule, "id", ""),
+                f"{withholding_rule.tax_rate:.4f}" if withholding_rule else "",
+                f"{withholding_rule.income_threshold:.2f}" if withholding_rule else "",
+                f"{withholding_rule.tax_threshold:.2f}" if withholding_rule else "",
+            ]
+        )
 
     output.seek(0)
     filename = f"tax_calculation_report_{session_id}.csv"
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename={filename}"
-        },
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.get("/results/{session_id}/fund-source")
+async def get_fund_source_data(session_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Get fund source data for a session.
+
+    Returns fund source breakdown by company and state jurisdiction.
+    """
+    # Initialize services
+    session_service = SessionService(db)
+    fund_source_service = FundSourceDataService(db)
+
+    # Get session
+    session = session_service.get_session_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get fund source data
+    fund_source_data = fund_source_service.get_fund_source_data_by_session(session_id)
+
+    # Format fund source data
+    source_data = []
+    for source in fund_source_data:
+        source_data.append({
+            "id": source.id,
+            "fund_code": source.fund_code,
+            "company_name": source.company_name,
+            "state_jurisdiction": source.state_jurisdiction.value,
+            "fund_share_percentage": float(source.fund_share_percentage),
+            "total_distribution_amount": float(source.total_distribution_amount),
+            "created_at": source.created_at.isoformat(),
+        })
+
+    return {
+        "session_id": session_id,
+        "fund_source_data": source_data,
+        "count": len(source_data),
+    }

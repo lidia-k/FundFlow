@@ -1,11 +1,24 @@
 """SaltRuleSet model for version control of SALT rule collections."""
 
 import uuid
-from datetime import datetime, date
-from sqlalchemy import Column, String, Integer, DateTime, Date, ForeignKey, Text, CheckConstraint, UniqueConstraint, Enum as SQLEnum
+from datetime import datetime
+
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    Date,
+    DateTime,
+    Enum as SQLEnum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
+
 from ..database.connection import Base
-from .enums import RuleSetStatus, Quarter
+from .enums import Quarter, RuleSetStatus
 
 
 class SaltRuleSet(Base):
@@ -20,7 +33,9 @@ class SaltRuleSet(Base):
     year = Column(Integer, nullable=False)
     quarter = Column(SQLEnum(Quarter), nullable=False)
     version = Column(String(20), nullable=False)
-    status = Column(SQLEnum(RuleSetStatus), nullable=False, default=RuleSetStatus.ACTIVE)
+    status = Column(
+        SQLEnum(RuleSetStatus), nullable=False, default=RuleSetStatus.ACTIVE
+    )
 
     # Lifecycle dates
     effective_date = Column(Date, nullable=False)
@@ -41,29 +56,37 @@ class SaltRuleSet(Base):
 
     # Relationships
     source_file = relationship("SourceFile", back_populates="rule_set")
-    withholding_rules = relationship("WithholdingRule", back_populates="rule_set", cascade="all, delete-orphan")
-    composite_rules = relationship("CompositeRule", back_populates="rule_set", cascade="all, delete-orphan")
-    validation_issues = relationship("ValidationIssue", back_populates="rule_set", cascade="all, delete-orphan")
-    resolved_rules = relationship("StateEntityTaxRuleResolved", back_populates="rule_set", cascade="all, delete-orphan")
+    withholding_rules = relationship(
+        "WithholdingRule", back_populates="rule_set", cascade="all, delete-orphan"
+    )
+    composite_rules = relationship(
+        "CompositeRule", back_populates="rule_set", cascade="all, delete-orphan"
+    )
+    validation_issues = relationship(
+        "ValidationIssue", back_populates="rule_set", cascade="all, delete-orphan"
+    )
+    resolved_rules = relationship(
+        "StateEntityTaxRuleResolved",
+        back_populates="rule_set",
+        cascade="all, delete-orphan",
+    )
 
     # Table constraints
     __table_args__ = (
         CheckConstraint(
-            "year >= 2020 AND year <= 2030",
-            name="ck_salt_rule_set_year_range"
+            "year >= 2020 AND year <= 2030", name="ck_salt_rule_set_year_range"
         ),
         CheckConstraint(
             "rule_count_withholding >= 0",
-            name="ck_salt_rule_set_withholding_count_positive"
+            name="ck_salt_rule_set_withholding_count_positive",
         ),
         CheckConstraint(
             "rule_count_composite >= 0",
-            name="ck_salt_rule_set_composite_count_positive"
+            name="ck_salt_rule_set_composite_count_positive",
         ),
         # Unique constraint: only one active rule set per year/quarter
         UniqueConstraint(
-            "year", "quarter", "status",
-            name="uq_salt_rule_set_active_year_quarter"
+            "year", "quarter", "status", name="uq_salt_rule_set_active_year_quarter"
         ),
     )
 

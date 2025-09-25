@@ -70,3 +70,19 @@ export interface ResultsPreviewResponse {
   preview_limit: number;
   showing_count: number;
 }
+
+export interface FundSourceDataRow {
+  id: number;
+  fund_code: string;
+  company_name: string;
+  state_jurisdiction: string;
+  fund_share_percentage: number;
+  total_distribution_amount: number;
+  created_at: string;
+}
+
+export interface FundSourceDataResponse {
+  session_id: string;
+  fund_source_data: FundSourceDataRow[];
+  count: number;
+}

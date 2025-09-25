@@ -1,7 +1,6 @@
 """Service helpers for Fund model operations."""
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -23,13 +22,8 @@ class FundService:
         """Fetch existing fund by code or create a new record with period metadata."""
         fund = self.db.query(Fund).filter(Fund.fund_code == fund_code).first()
         if fund:
-            if (
-                fund.period_quarter != period_quarter
-                or fund.period_year != period_year
-            ):
-                raise ValueError(
-                    "Existing fund has mismatched period metadata."
-                )
+            if fund.period_quarter != period_quarter or fund.period_year != period_year:
+                raise ValueError("Existing fund has mismatched period metadata.")
             return fund
 
         fund = Fund(
@@ -42,6 +36,6 @@ class FundService:
         self.db.flush()
         return fund
 
-    def get_fund(self, fund_code: str) -> Optional[Fund]:
+    def get_fund(self, fund_code: str) -> Fund | None:
         """Return fund by code if it exists."""
         return self.db.query(Fund).filter(Fund.fund_code == fund_code).first()
