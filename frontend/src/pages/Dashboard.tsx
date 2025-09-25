@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import type { SessionInfo } from '../types/api';
 import FilePreviewModal from '../components/FilePreviewModal';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import ResultsModal from '../components/ResultsModal';
 
 export default function Dashboard() {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -20,6 +21,16 @@ export default function Dashboard() {
   });
 
   const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    filename: string;
+  }>({
+    isOpen: false,
+    sessionId: '',
+    filename: '',
+  });
+
+  const [resultsModal, setResultsModal] = useState<{
     isOpen: boolean;
     sessionId: string;
     filename: string;
@@ -95,6 +106,22 @@ export default function Dashboard() {
 
   const handleCloseDelete = () => {
     setDeleteModal({
+      isOpen: false,
+      sessionId: '',
+      filename: '',
+    });
+  };
+
+  const handleOpenResults = (session: SessionInfo) => {
+    setResultsModal({
+      isOpen: true,
+      sessionId: session.session_id,
+      filename: session.filename,
+    });
+  };
+
+  const handleCloseResults = () => {
+    setResultsModal({
       isOpen: false,
       sessionId: '',
       filename: '',
@@ -236,12 +263,13 @@ export default function Dashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-4">
-                        <Link
-                          to={`/results/${session.session_id}`}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenResults(session)}
                           className="text-primary-600 hover:text-primary-900"
                         >
                           View Results
-                        </Link>
+                        </button>
                         <button
                           onClick={() => handleDeleteClick(session)}
                           className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
@@ -265,6 +293,13 @@ export default function Dashboard() {
         onClose={handleClosePreview}
         sessionId={previewModal.sessionId}
         filename={previewModal.filename}
+      />
+
+      <ResultsModal
+        isOpen={resultsModal.isOpen}
+        onClose={handleCloseResults}
+        sessionId={resultsModal.sessionId}
+        filename={resultsModal.filename}
       />
 
       {/* Delete Confirmation Modal */}

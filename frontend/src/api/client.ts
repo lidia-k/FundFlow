@@ -1,5 +1,10 @@
 import axios from 'axios';
-import type { UploadResponse, CalculationResult, SessionInfo } from '../types/api';
+import type {
+  UploadResponse,
+  CalculationResult,
+  SessionInfo,
+  ResultsPreviewResponse,
+} from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -45,8 +50,14 @@ export const api = {
   },
 
   // Get preview of calculation results
-  getResultsPreview: async (sessionId: string, limit: number = 100): Promise<any> => {
-    const response = await apiClient.get(`/results/${sessionId}/preview?limit=${limit}`);
+  getResultsPreview: async (
+    sessionId: string,
+    limit: number = 100,
+    mode: 'upload' | 'results' = 'upload',
+  ): Promise<ResultsPreviewResponse> => {
+    const response = await apiClient.get<ResultsPreviewResponse>(
+      `/results/${sessionId}/preview?limit=${limit}&mode=${mode}`
+    );
     return response.data;
   },
 
@@ -54,6 +65,14 @@ export const api = {
   // Download results file
   downloadResults: async (sessionId: string): Promise<Blob> => {
     const response = await apiClient.get(`/results/${sessionId}/download`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  // Download detailed tax calculation report
+  downloadTaxReport: async (sessionId: string): Promise<Blob> => {
+    const response = await apiClient.get(`/results/${sessionId}/report`, {
       responseType: 'blob',
     });
     return response.data;

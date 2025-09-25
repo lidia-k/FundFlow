@@ -53,31 +53,4 @@ class InvestorService:
         """Get investor by ID."""
         return self.db.query(Investor).filter(Investor.id == investor_id).first()
 
-    def search_investors(
-        self,
-        name_filter: Optional[str] = None,
-        entity_type_filter: Optional[InvestorEntityType] = None,
-        state_filter: Optional[str] = None,
-        limit: int = 100
-    ) -> list[Investor]:
-        """Search investors with filters."""
-        query = self.db.query(Investor)
 
-        if name_filter:
-            query = query.filter(Investor.investor_name.ilike(f"%{name_filter}%"))
-
-        if entity_type_filter:
-            query = query.filter(Investor.investor_entity_type == entity_type_filter)
-
-        if state_filter:
-            query = query.filter(Investor.investor_tax_state.ilike(state_filter))
-
-        return query.limit(limit).all()
-
-    def get_investor_distribution_history(self, investor_id: int) -> list:
-        """Get distribution history for an investor across all quarters."""
-        investor = self.get_investor_by_id(investor_id)
-        if not investor:
-            return []
-
-        return investor.distributions

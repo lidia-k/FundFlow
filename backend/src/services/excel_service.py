@@ -71,8 +71,6 @@ class ExcelService:
             'withholding_exemption': {},
             'composite_exemption': {}
         }
-        self._global_withholding_header: Optional[str] = None
-        self._global_composite_header: Optional[str] = None
 
 
     def extract_fund_info_from_filename(self, filename: str) -> Optional[Dict[str, str]]:

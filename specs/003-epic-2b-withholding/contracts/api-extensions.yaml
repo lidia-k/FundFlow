@@ -1,0 +1,366 @@
+openapi: 3.0.3
+info:
+  title: FundFlow API - Epic 2B Tax Calculation Extensions
+  description: API contract extensions for withholding and composite tax calculations
+  version: 1.2.0-epic2b
+
+paths:
+  /api/sessions/{session_id}:
+    get:
+      summary: Get session details with tax calculations
+      description: |
+        Extended session endpoint that returns distribution data with calculated tax amounts
+        when tax calculations have been applied.
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session details with distributions and tax calculations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionWithTaxCalculationsResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/sessions/{session_id}/audit-report:
+    get:
+      summary: Generate detailed tax calculation audit report
+      description: |
+        Generate a comprehensive audit report showing step-by-step tax calculation
+        breakdown for compliance and debugging purposes.
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json, excel]
+            default: json
+      responses:
+        '200':
+          description: Audit report generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxCalculationAuditReport'
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Session not found or no tax calculations performed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SessionWithTaxCalculationsResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+        filename:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+        has_tax_calculations:
+          type: boolean
+          description: Indicates if tax calculations were applied to this session
+        tax_calculation_summary:
+          $ref: '#/components/schemas/TaxCalculationSummary'
+        distributions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DistributionWithTaxes'
+
+    DistributionWithTaxes:
+      type: object
+      properties:
+        id:
+          type: integer
+        investor_name:
+          type: string
+        jurisdiction:
+          type: string
+          maxLength: 10
+        amount:
+          type: number
+          format: decimal
+          multipleOf: 0.01
+
+        # Legacy exemption flags (preserved for backward compatibility)
+        composite_exemption:
+          type: boolean
+        withholding_exemption:
+          type: boolean
+
+        # Tax calculation results
+        withholding_tax_tx:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+          nullable: true
+        withholding_tax_nm:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+          nullable: true
+        withholding_tax_co:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+          nullable: true
+        composite_tax_tx:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+          nullable: true
+        composite_tax_nm:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+          nullable: true
+        composite_tax_co:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+          nullable: true
+
+        # Calculation metadata
+        tax_calculation_applied:
+          type: boolean
+        exemption_reason:
+          type: string
+          maxLength: 255
+          nullable: true
+        calculation_timestamp:
+          type: string
+          format: date-time
+          nullable: true
+
+    TaxCalculationSummary:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        salt_rule_set_id:
+          type: integer
+          nullable: true
+        salt_rule_set_name:
+          type: string
+          nullable: true
+        total_distributions:
+          type: integer
+          minimum: 0
+        distributions_with_taxes:
+          type: integer
+          minimum: 0
+        distributions_exempted:
+          type: integer
+          minimum: 0
+
+        # Tax totals by state
+        total_withholding_tax_tx:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+        total_withholding_tax_nm:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+        total_withholding_tax_co:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+        total_composite_tax_tx:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+        total_composite_tax_nm:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+        total_composite_tax_co:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+
+        calculation_timestamp:
+          type: string
+          format: date-time
+
+    TaxCalculationAuditReport:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        report_generated_at:
+          type: string
+          format: date-time
+        salt_rule_set_used:
+          $ref: '#/components/schemas/SaltRuleSetInfo'
+        summary:
+          $ref: '#/components/schemas/TaxCalculationSummary'
+        calculation_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxCalculationAuditDetail'
+
+    TaxCalculationAuditDetail:
+      type: object
+      properties:
+        distribution_id:
+          type: integer
+        investor_name:
+          type: string
+        jurisdiction:
+          type: string
+        distribution_amount:
+          type: number
+          format: decimal
+
+        # Step 1: Exemption checks
+        step1_exemption_applied:
+          type: boolean
+        step1_exemption_reason:
+          type: string
+          nullable: true
+        step1_jurisdiction_matches_tax_state:
+          type: boolean
+
+        # Step 2: Composite tax calculation
+        step2_mandatory_filing_required:
+          type: boolean
+        step2_composite_tax_calculated:
+          type: boolean
+        step2_tax_rate:
+          type: number
+          format: decimal
+          multipleOf: 0.000001
+          nullable: true
+        step2_tax_amount:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+          nullable: true
+
+        # Step 3: Withholding tax calculation
+        step3_withholding_tax_calculated:
+          type: boolean
+        step3_tax_rate:
+          type: number
+          format: decimal
+          multipleOf: 0.000001
+          nullable: true
+        step3_tax_amount:
+          type: number
+          format: decimal
+          multipleOf: 0.0001
+          nullable: true
+
+        applied_rules:
+          $ref: '#/components/schemas/AppliedTaxRules'
+        calculation_timestamp:
+          type: string
+          format: date-time
+
+    AppliedTaxRules:
+      type: object
+      properties:
+        composite_rule:
+          type: object
+          nullable: true
+          properties:
+            rule_id:
+              type: integer
+            state:
+              type: string
+            entity_type:
+              type: string
+            tax_rate:
+              type: number
+              format: decimal
+            mandatory_filing:
+              type: boolean
+            income_threshold:
+              type: number
+              format: decimal
+              nullable: true
+        withholding_rule:
+          type: object
+          nullable: true
+          properties:
+            rule_id:
+              type: integer
+            state:
+              type: string
+            entity_type:
+              type: string
+            tax_rate:
+              type: number
+              format: decimal
+            per_partner_income_threshold:
+              type: number
+              format: decimal
+              nullable: true
+            per_partner_wh_tax_threshold:
+              type: number
+              format: decimal
+              nullable: true
+
+    SaltRuleSetInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+          enum: [active, draft, archived]
+        effective_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true

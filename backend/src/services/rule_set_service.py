@@ -3,14 +3,12 @@
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, date
-from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from ..models.salt_rule_set import SaltRuleSet, RuleSetStatus
 from ..models.withholding_rule import WithholdingRule
 from ..models.composite_rule import CompositeRule
 from ..models.validation_issue import ValidationIssue
-from ..models.resolved_rule import StateEntityTaxRuleResolved
 logger = logging.getLogger(__name__)
 
 
@@ -149,114 +147,7 @@ class RuleSetService:
 
         return result
 
-    def publish_rule_set(
-        self,
-        rule_set_id: str,
-        effective_date: Optional[date] = None,
-        confirm_archive: bool = False
-    ) -> Dict[str, Any]:
-        """
-        Publish a draft rule set to active status.
 
-        Args:
-            rule_set_id: UUID of the rule set to publish
-            effective_date: Optional effective date (defaults to today)
-            confirm_archive: Whether to confirm archiving existing active rule set
-
-        Returns:
-            Dictionary with publish result information
-        """
-        # Get the rule set
-        rule_set = self.db.get(SaltRuleSet, rule_set_id)
-        if not rule_set:
-            raise ValueError(f"Rule set not found: {rule_set_id}")
-
-        if rule_set.status != RuleSetStatus.ACTIVE:
-            raise ValueError("Only active rule sets can be republished")
-
-        # Check for validation errors
-        error_count = (
-            self.db.query(ValidationIssue)
-            .filter(
-                ValidationIssue.rule_set_id == rule_set_id,
-                ValidationIssue.severity == "error"
-            )
-            .count()
-        )
-
-        if error_count > 0:
-            raise ValueError("Cannot publish rule set with validation errors")
-
-        # Check for existing active rule set
-        existing_active = (
-            self.db.query(SaltRuleSet)
-            .filter(
-                SaltRuleSet.year == rule_set.year,
-                SaltRuleSet.quarter == rule_set.quarter,
-                SaltRuleSet.status == RuleSetStatus.ACTIVE
-            )
-            .first()
-        )
-
-        if existing_active and not confirm_archive:
-            raise ValueError("Existing active rule set must be archived. Set confirm_archive=True")
-
-        # Archive existing active rule set
-        if existing_active:
-            existing_active.status = RuleSetStatus.ARCHIVED
-            existing_active.expiration_date = date.today()
-            logger.info(f"Archived existing active rule set: {existing_active.id}")
-
-        # Publish the new rule set
-        rule_set.status = RuleSetStatus.ACTIVE
-        rule_set.published_at = datetime.now()
-        rule_set.effective_date = effective_date or date.today()
-
-        # Generate resolved rules
-        self._generate_resolved_rules(rule_set)
-
-        self.db.commit()
-
-        logger.info(f"Published rule set: {rule_set_id}")
-
-        return {
-            "ruleSetId": rule_set_id,
-            "status": "active",
-            "publishedAt": rule_set.published_at.isoformat() + "Z",
-            "effectiveDate": rule_set.effective_date.isoformat(),
-            "resolvedRulesGenerated": True,
-            "archivedPrevious": existing_active is not None
-        }
-
-    def archive_rule_set(self, rule_set_id: str) -> Dict[str, Any]:
-        """
-        Archive a rule set.
-
-        Args:
-            rule_set_id: UUID of the rule set to archive
-
-        Returns:
-            Dictionary with archive result information
-        """
-        rule_set = self.db.get(SaltRuleSet, rule_set_id)
-        if not rule_set:
-            raise ValueError(f"Rule set not found: {rule_set_id}")
-
-        if rule_set.status == RuleSetStatus.ARCHIVED:
-            raise ValueError("Rule set is already archived")
-
-        rule_set.status = RuleSetStatus.ARCHIVED
-        rule_set.expiration_date = date.today()
-
-        self.db.commit()
-
-        logger.info(f"Archived rule set: {rule_set_id}")
-
-        return {
-            "ruleSetId": rule_set_id,
-            "status": "archived",
-            "archivedAt": rule_set.expiration_date.isoformat()
-        }
 
     def delete_rule_set(self, rule_set_id: str, force: bool = False) -> Dict[str, Any]:
         """
@@ -280,8 +171,7 @@ class RuleSetService:
         deleted_counts = {
             "withholding_rules": 0,
             "composite_rules": 0,
-            "validation_issues": 0,
-            "resolved_rules": 0
+            "validation_issues": 0
         }
 
         # Delete withholding rules
@@ -305,12 +195,6 @@ class RuleSetService:
         deleted_counts["validation_issues"] = validation_issues.count()
         validation_issues.delete()
 
-        # Delete resolved rules
-        resolved_rules = self.db.query(StateEntityTaxRuleResolved).filter(
-            StateEntityTaxRuleResolved.rule_set_id == rule_set_id
-        )
-        deleted_counts["resolved_rules"] = resolved_rules.count()
-        resolved_rules.delete()
 
         # Delete the rule set itself
         self.db.delete(rule_set)
@@ -324,112 +208,6 @@ class RuleSetService:
             "deletedCounts": deleted_counts
         }
 
-    def get_active_rule_set(self, year: int, quarter: str) -> Optional[Dict[str, Any]]:
-        """
-        Get the active rule set for a specific year and quarter.
 
-        Args:
-            year: Tax year
-            quarter: Tax quarter
-
-        Returns:
-            Dictionary with active rule set information or None
-        """
-        rule_set = (
-            self.db.query(SaltRuleSet)
-            .filter(
-                SaltRuleSet.year == year,
-                SaltRuleSet.quarter == quarter,
-                SaltRuleSet.status == RuleSetStatus.ACTIVE
-            )
-            .first()
-        )
-
-        if rule_set:
-            return {
-                "id": str(rule_set.id),
-                "year": rule_set.year,
-                "quarter": rule_set.quarter.value,
-                "version": rule_set.version,
-                "effectiveDate": rule_set.effective_date.isoformat(),
-                "publishedAt": rule_set.published_at.isoformat() + "Z" if rule_set.published_at else None
-            }
-
-        return None
-
-    def _generate_resolved_rules(self, rule_set: SaltRuleSet) -> None:
-        """
-        Generate resolved rules table for fast calculations.
-
-        Args:
-            rule_set: The rule set being published
-        """
-        logger.info(f"Generating resolved rules for rule set: {rule_set.id}")
-
-        # Delete existing resolved rules for this rule set
-        self.db.query(StateEntityTaxRuleResolved).filter(
-            StateEntityTaxRuleResolved.rule_set_id == rule_set.id
-        ).delete()
-
-        # Get all withholding and composite rules
-        withholding_rules = (
-            self.db.query(WithholdingRule)
-            .filter(WithholdingRule.rule_set_id == rule_set.id)
-            .all()
-        )
-
-        composite_rules = (
-            self.db.query(CompositeRule)
-            .filter(CompositeRule.rule_set_id == rule_set.id)
-            .all()
-        )
-
-        # Create lookup dictionaries
-        withholding_lookup = {
-            (rule.state_code, rule.entity_type): rule for rule in withholding_rules
-        }
-        composite_lookup = {
-            (rule.state_code, rule.entity_type): rule for rule in composite_rules
-        }
-
-        # Find all unique state/entity combinations
-        all_combinations = set(withholding_lookup.keys()) | set(composite_lookup.keys())
-
-        resolved_rules = []
-        for state_code, entity_type in all_combinations:
-            withholding_rule = withholding_lookup.get((state_code, entity_type))
-            composite_rule = composite_lookup.get((state_code, entity_type))
-
-            # Create resolved rule (only if both withholding and composite exist)
-            if withholding_rule and composite_rule:
-                resolved_rule = StateEntityTaxRuleResolved(
-                    id=uuid4(),
-                    rule_set_id=rule_set.id,
-                    state_code=state_code,
-                    entity_type=entity_type,
-                    # Withholding data
-                    withholding_rate=withholding_rule.tax_rate,
-                    withholding_income_threshold=withholding_rule.income_threshold,
-                    withholding_tax_threshold=withholding_rule.tax_threshold,
-                    # Composite data
-                    composite_rate=composite_rule.tax_rate,
-                    composite_income_threshold=composite_rule.income_threshold,
-                    composite_mandatory_filing=composite_rule.mandatory_filing,
-                    composite_min_tax=composite_rule.min_tax_amount,
-                    composite_max_tax=composite_rule.max_tax_amount,
-                    # Effective dates
-                    effective_date=rule_set.effective_date,
-                    expiration_date=rule_set.expiration_date,
-                    # Audit trail
-                    created_at=datetime.now(),
-                    source_withholding_rule_id=withholding_rule.id,
-                    source_composite_rule_id=composite_rule.id
-                )
-                resolved_rules.append(resolved_rule)
-
-        # Bulk insert resolved rules
-        self.db.add_all(resolved_rules)
-
-        logger.info(f"Generated {len(resolved_rules)} resolved rules")
 
  

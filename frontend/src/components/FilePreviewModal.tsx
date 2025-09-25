@@ -1,24 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { api } from '../api/client';
+import type { ResultsPreviewResponse, ResultsPreviewRow } from '../types/api';
 
 interface FilePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   sessionId: string;
   filename: string;
-}
-
-interface PreviewData {
-  investor_name: string;
-  entity_type: string;
-  tax_state: string;
-  jurisdiction: string;
-  amount: number;
-  composite_exemption: string;
-  withholding_exemption: string;
-  fund_code: string;
-  period: string;
 }
 
 interface GroupedInvestorData {
@@ -32,17 +21,8 @@ interface GroupedInvestorData {
   withholding_exemptions: Record<string, string>;
 }
 
-interface PreviewResponse {
-  session_id: string;
-  status: string;
-  preview_data: PreviewData[];
-  total_records: number;
-  preview_limit: number;
-  showing_count: number;
-}
-
 export default function FilePreviewModal({ isOpen, onClose, sessionId, filename }: FilePreviewModalProps) {
-  const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
+  const [previewData, setPreviewData] = useState<ResultsPreviewResponse | null>(null);
   const [groupedData, setGroupedData] = useState<GroupedInvestorData[]>([]);
   const [jurisdictions, setJurisdictions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,7 +62,7 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
     }).format(amount);
   };
 
-  const transformDataByInvestor = (data: PreviewData[]): { grouped: GroupedInvestorData[], jurisdictions: string[] } => {
+  const transformDataByInvestor = (data: ResultsPreviewRow[]): { grouped: GroupedInvestorData[], jurisdictions: string[] } => {
     const investorMap = new Map<string, GroupedInvestorData>();
     const jurisdictionSet = new Set<string>();
 
@@ -105,8 +85,8 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
 
       const investor = investorMap.get(key)!;
       investor.distributions[row.jurisdiction] = row.amount;
-      investor.composite_exemptions[row.jurisdiction] = row.composite_exemption;
-      investor.withholding_exemptions[row.jurisdiction] = row.withholding_exemption;
+      investor.composite_exemptions[row.jurisdiction] = row.composite_exemption ?? '-';
+      investor.withholding_exemptions[row.jurisdiction] = row.withholding_exemption ?? '-';
     });
 
     const sortedJurisdictions = Array.from(jurisdictionSet).sort();
@@ -205,12 +185,12 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                         {/* Dynamic exemption columns */}
                         {jurisdictions.map(jurisdiction => (
                           <th key={`comp-${jurisdiction}`} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Composite {jurisdiction}
+                            Composite Exemption {jurisdiction}
                           </th>
                         ))}
                         {jurisdictions.map(jurisdiction => (
                           <th key={`with-${jurisdiction}`} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Withholding {jurisdiction}
+                            Withholding Exemption {jurisdiction}
                           </th>
                         ))}
 
@@ -241,38 +221,50 @@ export default function FilePreviewModal({ isOpen, onClose, sessionId, filename 
                           ))}
 
                           {/* Dynamic composite exemptions */}
-                          {jurisdictions.map(jurisdiction => (
-                            <td key={`comp-${jurisdiction}`} className="px-4 py-3 text-center">
-                              {investor.composite_exemptions[jurisdiction] ? (
-                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  investor.composite_exemptions[jurisdiction] === 'Yes'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {investor.composite_exemptions[jurisdiction]}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                          ))}
+                          {jurisdictions.map(jurisdiction => {
+                            const compositeValue = investor.composite_exemptions[jurisdiction];
+                            const isFlag = compositeValue === 'Yes' || compositeValue === 'No';
+                            return (
+                              <td key={`comp-${jurisdiction}`} className="px-4 py-3 text-center">
+                                {isFlag ? (
+                                  <span
+                                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                      compositeValue === 'Yes'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}
+                                  >
+                                    {compositeValue}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                            );
+                          })}
 
                           {/* Dynamic withholding exemptions */}
-                          {jurisdictions.map(jurisdiction => (
-                            <td key={`with-${jurisdiction}`} className="px-4 py-3 text-center">
-                              {investor.withholding_exemptions[jurisdiction] ? (
-                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  investor.withholding_exemptions[jurisdiction] === 'Yes'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {investor.withholding_exemptions[jurisdiction]}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                          ))}
+                          {jurisdictions.map(jurisdiction => {
+                            const withholdingValue = investor.withholding_exemptions[jurisdiction];
+                            const isFlag = withholdingValue === 'Yes' || withholdingValue === 'No';
+                            return (
+                              <td key={`with-${jurisdiction}`} className="px-4 py-3 text-center">
+                                {isFlag ? (
+                                  <span
+                                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                      withholdingValue === 'Yes'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}
+                                  >
+                                    {withholdingValue}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                            );
+                          })}
 
                           <td className="px-4 py-3 text-sm text-gray-500">
                             {investor.period}

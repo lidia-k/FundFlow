@@ -24,4 +24,13 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    coverage: {
+      reporter: ['text', 'lcov'],
+    },
+    exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
+  },
 })

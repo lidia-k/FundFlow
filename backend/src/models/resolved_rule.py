@@ -3,7 +3,18 @@
 import uuid
 from datetime import datetime, date
 from decimal import Decimal
-from sqlalchemy import Column, String, DateTime, Date, ForeignKey, Boolean, CheckConstraint, UniqueConstraint, Enum as SQLEnum, DECIMAL
+from sqlalchemy import (
+    Column,
+    String,
+    DateTime,
+    Date,
+    ForeignKey,
+    Boolean,
+    CheckConstraint,
+    UniqueConstraint,
+    Enum as SQLEnum,
+    DECIMAL,
+)
 from sqlalchemy.orm import relationship
 from ..database.connection import Base
 from .enums import USJurisdiction
@@ -50,46 +61,51 @@ class StateEntityTaxRuleResolved(Base):
 
     # Table constraints
     __table_args__ = (
-        # Withholding rate constraints
         CheckConstraint(
             "withholding_rate >= 0.0000 AND withholding_rate <= 1.0000",
-            name="ck_resolved_rule_withholding_rate_range"
+            name="ck_resolved_rule_withholding_rate_range",
         ),
         CheckConstraint(
             "withholding_income_threshold >= 0.00",
-            name="ck_resolved_rule_withholding_income_threshold_positive"
+            name="ck_resolved_rule_withholding_income_threshold_positive",
         ),
         CheckConstraint(
             "withholding_tax_threshold >= 0.00",
-            name="ck_resolved_rule_withholding_tax_threshold_positive"
+            name="ck_resolved_rule_withholding_tax_threshold_positive",
         ),
         # Composite rate constraints
         CheckConstraint(
             "composite_rate >= 0.0000 AND composite_rate <= 1.0000",
-            name="ck_resolved_rule_composite_rate_range"
+            name="ck_resolved_rule_composite_rate_range",
         ),
         CheckConstraint(
             "composite_income_threshold >= 0.00",
-            name="ck_resolved_rule_composite_income_threshold_positive"
+            name="ck_resolved_rule_composite_income_threshold_positive",
         ),
         CheckConstraint(
             "composite_min_tax IS NULL OR composite_min_tax >= 0.00",
-            name="ck_resolved_rule_composite_min_tax_positive"
+            name="ck_resolved_rule_composite_min_tax_positive",
         ),
         CheckConstraint(
             "composite_max_tax IS NULL OR composite_max_tax >= 0.00",
-            name="ck_resolved_rule_composite_max_tax_positive"
+            name="ck_resolved_rule_composite_max_tax_positive",
         ),
         CheckConstraint(
             "composite_min_tax IS NULL OR composite_max_tax IS NULL OR composite_max_tax >= composite_min_tax",
-            name="ck_resolved_rule_composite_max_gte_min_tax"
+            name="ck_resolved_rule_composite_max_gte_min_tax",
         ),
         # Unique constraint: one resolved rule per rule_set/state/entity combination
         UniqueConstraint(
-            "rule_set_id", "state_code", "entity_type",
-            name="uq_resolved_rule_set_state_entity"
+            "rule_set_id",
+            "state_code",
+            "entity_type",
+            name="uq_resolved_rule_set_state_entity",
         ),
     )
 
     def __repr__(self) -> str:
-        return f"<StateEntityTaxRuleResolved(id='{self.id}', state='{self.state_code.value}', entity_type='{self.entity_type}', withholding_rate={self.withholding_rate}, composite_rate={self.composite_rate})>"
+        return (
+            "<StateEntityTaxRuleResolved(id='{self.id}', state='{self.state_code.value}', "
+            "entity_type='{self.entity_type}', withholding_rate={self.withholding_rate}, "
+            "composite_rate={self.composite_rate})>"
+        )

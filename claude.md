@@ -1,4 +1,4 @@
-# FundFlow - AI-Powered PE Back-Office Automation Platform (Prototype v1.2)
+# FundFlow - AI-Powered PE Back-Office Automation Platform (v1.2.1)
 
 ## Project Overview
 FundFlow is an AI-powered automation platform designed to solve manual SALT (State and Local Tax) calculation challenges for Private Equity fund back-office operations. This prototype version (v1.2) focuses on validating the core workflow of Excel file upload, SALT calculation, and results generation without complex API integrations.
@@ -95,30 +95,57 @@ FundFlow/
 - **Code Quality**: ESLint, Prettier
 
 ## API Reference
-### Core Endpoints
+### Core Upload & Results Endpoints
 - `POST /api/upload` - Upload Excel file for processing
 - `GET /api/results/{session_id}` - Get processing results and status
-- `GET /api/results/{session_id}/preview` - Preview processing results
+- `GET /api/results/{session_id}/preview` - Preview processing results with mode support
 - `GET /api/results/{session_id}/download` - Download results as Excel
 - `GET /api/results/{session_id}/download-errors` - Download validation errors
+- `GET /api/results/{session_id}/report` - Download detailed tax calculation audit report
 - `GET /api/template` - Download Excel template
+- `GET /api/sessions` - List all user sessions
 - `GET /api/health` - Health check
 - `GET /api/health/simple` - Simple health check
 
+### SALT Rule Management Endpoints
+- `POST /api/salt-rules/upload` - Upload SALT rule workbooks for processing
+- `GET /api/salt-rules` - List rule sets with filtering and pagination
+- `GET /api/salt-rules/{id}` - Get detailed rule set information
+- `GET /api/salt-rules/{id}/validation` - Get validation results (JSON/CSV)
+- `GET /api/salt-rules/{id}/preview` - Preview rule changes vs current active
+- `GET /api/salt-rules/template` - Download SALT rules template
+
 ### Data Models
+#### Core Models
 - **UserSession**: Upload session tracking with status and progress
 - **Investor**: Persistent investor entities with name, entity type, and tax state
-- **Distribution**: Quarterly distribution amounts by jurisdiction
+- **Distribution**: Quarterly distribution amounts by jurisdiction with tax calculations
 - **ValidationError**: File validation errors with severity levels
 - **UploadStatus**: Enum for tracking upload/processing stages
 
+#### SALT Rule Models
+- **SaltRuleSet**: Version-controlled SALT rule collections with lifecycle management
+- **WithholdingRule**: Individual withholding tax rules by state and entity type
+- **CompositeRule**: Composite tax rates and filing requirements
+- **SourceFile**: Uploaded file tracking with SHA256 hashing
+- **ValidationIssue**: Rule validation errors and warnings
+- **StateEntityTaxRuleResolved**: Denormalized view for fast tax lookups
+
 ## Database Schema
-### Key Tables
+### Core Tables
 - `user_sessions` - Upload sessions (session_id, user_id, status, progress, file info)
 - `users` - User accounts (id, email, name, created_at)
 - `investors` - Persistent investor entities (id, name, entity_type, tax_state)
-- `distributions` - Distribution data (id, investor_id, session_id, jurisdiction, amount, exemptions)
+- `distributions` - Distribution data with tax calculations (composite_tax_amount, withholding_tax_amount)
 - `validation_errors` - Processing errors (id, session_id, row_number, severity, message)
+
+### SALT Rule Tables
+- `salt_rule_set` - Rule set versions with lifecycle management (draft/active/archived)
+- `withholding_rule` - Withholding tax rules by state and entity type
+- `composite_rule` - Composite tax rates and mandatory filing requirements
+- `source_file` - Uploaded file metadata with SHA256 hashing for duplicates
+- `validation_issue` - Rule validation errors and warnings
+- `state_entity_tax_rule_resolved` - Denormalized tax rule lookup table
 
 ## Coding Standards & Conventions
 ### Python (Backend)
@@ -181,26 +208,29 @@ make lint-fix        # Auto-fix linting issues
 - ✅ Updated data model for persistent investors and exemption fields support (v1.2 format)
 - ✅ Enhanced specifications to support 9-column Excel format with CO/NM exemption tracking
 - ✅ **COMPLETE MVP IMPLEMENTATION** - All Phase 3.1-3.7 tasks (T001-T040) implemented
-- ✅ Backend: 21 Python files with database models, services, and API endpoints
-- ✅ Frontend: 15+ React components with Shadcn UI, drag-drop upload, data grids
-- ✅ E2E testing: Playwright test suite covering complete upload workflow
-- ✅ **Docker Configuration Fixed** - Resolved pydantic-settings parsing errors, dependency conflicts, and health checks
-- ✅ **v1.3 Format Support** - Updated ExcelService with flexible column detection for dynamic state-based parsing
-- ✅ **Project Onboarding Complete** - Comprehensive memory files created with project overview, tech stack, conventions, and development workflows
-- ✅ **Sessions API Endpoint** - Added GET /sessions endpoint to fix Dashboard 404 error when loading user sessions
-- ✅ **Dynamic Column Preview** - Enhanced file preview modal to dynamically display columns based on uploaded file content instead of hardcoded TX/NM/CO
-- ✅ **Excel Validation Improvements** - Refactored Excel processor with fail-fast validation and simplified entity type validation
-- 🎯 **Ready for user validation**: Working end-to-end prototype with all containers healthy
+- ✅ **Epic 2A COMPLETE: SALT Rule System** - Full tax rule management with 7 new models, 6 API endpoints, comprehensive validation
+- ✅ **Epic 2B COMPLETE: Tax Calculation Engine** - Automated withholding and composite tax calculations with audit reporting
+- ✅ Backend: 26 Python files with database models, services, and API endpoints (11 services, 11+ models)
+- ✅ Frontend: 18+ React components with Shadcn UI, modal workflow, advanced data grids
+- ✅ E2E testing: Playwright test suite covering complete upload and tax calculation workflow
+- ✅ **Results Modal Workflow** - Streamlined user experience with modal-based results instead of separate pages
+- ✅ **Audit Reporting** - CSV download functionality for detailed tax calculation compliance reports
+- ✅ **Database Auto-Migration** - Automatic schema updates for tax calculation columns on legacy databases
+- ✅ **v1.3 Format Support** - Dynamic Excel column detection supporting multiple state jurisdictions
+- ✅ **Comprehensive Test Coverage** - 35+ test files covering contracts, integration, and unit testing
+- 🎯 **Production Ready**: Advanced tax processing system ready for deployment and user testing
 
-## Prototype Scope & Limitations
-### In Scope for v1.2
-- Excel file upload (drag & drop)
-- SALT calculation with pre-stored EY data
-- Basic results dashboard
-- Excel export of calculation results
-- Template download functionality
+## Version 1.2.1 Scope & Capabilities
+### Implemented Features
+- Excel file upload (drag & drop) with comprehensive validation
+- Complete SALT rule management system with lifecycle control
+- Automated tax calculation engine (withholding + composite)
+- Advanced results dashboard with modal workflow
+- Excel export and audit report generation
+- Template download functionality (v1.3 format)
 - Support for ~10 portfolio companies, ~20 LPs
 - File size limit: 10MB
+- Comprehensive audit trail for compliance
 
 ### Out of Scope for v1.2 (Future v1.3+)
 - API integrations (NetSuite, Salesforce)
@@ -292,7 +322,42 @@ Always use context7 when I need code generation, setup or configuration steps, o
 - Keep .venv in the project root directory
 - Ensure virtual environment is activated before running Python code
 
+## Epic 2B: Withholding and Composite Tax Calculation (Current)
+**Branch**: `003-epic-2b-withholding` | **Status**: Core Implementation Complete
+
+### Overview
+Epic 2B extends the existing SALT rule system (Epic 2A) to implement automatic tax calculations for investor distributions. When users upload distribution data and an active SALT rule set exists, the system applies a 3-step calculation process:
+
+1. **Handle Exemptions**: Skip calculations for exempt distributions and same-state jurisdictions
+2. **Calculate Composite Tax**: Apply rates for mandatory filing states with thresholds
+3. **Calculate Withholding Tax**: Apply withholding rates with per-partner thresholds
+4. **Present Results**: Show calculated taxes in modal instead of exemption flags
+
+### Key Implementation Details
+- **Data Model**: Extends Distribution model with tax calculation fields (withholding_tax_*, composite_tax_*)
+- **Service Layer**: New TaxCalculationService following existing Epic 2A patterns
+- **API Changes**: Extends existing /api/sessions endpoints, adds /audit-report endpoint
+- **Frontend**: Enhances ResultsModal to show tax amounts instead of exemption flags
+- **Audit Trail**: Comprehensive step-by-step calculation logging for compliance
+
+### Implementation Status
+✅ **Completed Core Features**:
+- `backend/src/models/distribution.py` - Tax calculation fields added
+- `backend/src/services/tax_calculation_service.py` - Full calculation engine implemented
+- `backend/src/services/excel_service.py` - Tax calculation integration complete
+- `backend/src/api/results.py` - Enhanced with audit report endpoint
+- `frontend/src/components/ResultsModal.tsx` - Modal-based tax display implemented
+- Database schema - Automatic migration for tax calculation columns
+- Comprehensive unit tests for all tax calculation logic
+
+### Integration Strategy
+Epic 2B leverages existing Epic 2A infrastructure:
+- Uses existing SALT rule tables (salt_rule_set, withholding_rule, composite_rule)
+- Integrates with current Excel upload pipeline
+- Maintains backward compatibility for sessions without SALT rules
+- Follows established service patterns and error handling
+
 ## Test-First (Non-Negotiable)
-- **Order:** Unit → Contract → Integration → E2E → Implementation.  
-- Write tests first (Red-Green-Refactor).  
+- **Order:** Unit → Contract → Integration → E2E → Implementation.
+- Write tests first (Red-Green-Refactor).
 - All merges require passing tests and proof of the TDD cycle.  

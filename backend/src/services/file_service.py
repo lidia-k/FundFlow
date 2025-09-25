@@ -128,67 +128,7 @@ class FileService:
 
 
 
-    def get_file_metadata(self, source_file_id: str) -> Optional[Dict]:
-        """
-        Get file metadata by source file ID.
 
-        Args:
-            source_file_id: UUID of the source file
-
-        Returns:
-            Dictionary with file metadata or None
-        """
-        try:
-            source_file = self.db.get(SourceFile, source_file_id)
-
-            if source_file:
-                return {
-                    "id": str(source_file.id),
-                    "filename": source_file.filename,
-                    "filepath": source_file.filepath,
-                    "fileSize": source_file.file_size,
-                    "contentType": source_file.content_type,
-                    "uploadTimestamp": source_file.upload_timestamp.isoformat() + "Z",
-                    "uploadedBy": source_file.uploaded_by
-                }
-
-            return None
-
-        except Exception as e:
-            logger.error(f"Error getting file metadata: {str(e)}")
-            return None
-
-    def delete_file(self, source_file_id: str) -> bool:
-        """
-        Delete file and its metadata.
-
-        Args:
-            source_file_id: UUID of the source file
-
-        Returns:
-            True if deletion successful, False otherwise
-        """
-        try:
-            source_file = self.db.get(SourceFile, source_file_id)
-
-            if source_file:
-                # Delete physical file
-                file_path = Path(source_file.filepath)
-                if file_path.exists():
-                    file_path.unlink()
-
-                # Delete database record
-                self.db.delete(source_file)
-                self.db.commit()
-
-                logger.info(f"File deleted successfully: {source_file.filename}")
-                return True
-
-            return False
-
-        except Exception as e:
-            logger.error(f"Error deleting file: {str(e)}")
-            return False
 
 
 
@@ -204,29 +144,3 @@ class FileService:
             / original_filename
         )
 
-    def validate_file_format(self, file_path: Path) -> Tuple[bool, Optional[str]]:
-        """
-        Validate file format by reading file headers.
-
-        Args:
-            file_path: Path to file to validate
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        try:
-            # Check file extension
-            if file_path.suffix.lower() not in ['.xlsx', '.xlsm']:
-                return False, f"Invalid file extension: {file_path.suffix}"
-
-            # Try to read file headers to verify it's actually an Excel file
-            with open(file_path, 'rb') as f:
-                header = f.read(4)
-                # Excel files start with PK (ZIP format)
-                if not header.startswith(b'PK'):
-                    return False, "File is not a valid Excel workbook"
-
-            return True, None
-
-        except Exception as e:
-            return False, f"Error validating file format: {str(e)}"
